@@ -1,0 +1,17 @@
+{
+  "_comment": "PocketMCP - MCP Server config for Claude Desktop, Cursor, Windsurf, etc.",
+  "_instructions": [
+    "1. Replace YOUR_PHONE_IP with your Android device's local IP (shown in the app)",
+    "2. Replace YOUR_API_KEY with the key you set in the app (or remove the header if no auth)",
+    "3. Add this config to your MCP client's settings"
+  ],
+  "mcpServers": {
+    "phone": {
+      "type": "streamableHttp",
+      "url": "http://YOUR_PHONE_IP:8080/mcp",
+      "headers": {
+        "X-API-Key": "YOUR_API_KEY"
+      }
+    }
+  }
+}

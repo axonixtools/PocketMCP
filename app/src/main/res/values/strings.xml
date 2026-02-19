@@ -1,0 +1,60 @@
+<resources>
+    <string name="app_name">PocketMCP</string>
+    <string name="header_subtitle">Private MCP bridge for your phone</string>
+
+    <string name="server_running_channel">PocketMCP Service</string>
+    <string name="server_starting_notification">Starting PocketMCP on port %1$d</string>
+    <string name="server_running_notification">PocketMCP running on port %1$d</string>
+
+    <string name="server_status_running">Server running</string>
+    <string name="server_status_stopped">Server stopped</string>
+    <string name="server_status_starting">Starting server...</string>
+    <string name="server_status_stopping">Stopping server...</string>
+    <string name="server_status_failed">Server error</string>
+    <string name="server_switch_label">Server</string>
+
+    <string name="mcp_endpoint_label">Connection endpoint</string>
+    <string name="copy_endpoint">Copy endpoint</string>
+
+    <string name="server_config_title">Server Configuration</string>
+    <string name="port_hint">Port (1-65535)</string>
+    <string name="api_key_hint">API key (recommended)</string>
+    <string name="generate_api_key">Generate key</string>
+    <string name="start_server">Start server</string>
+    <string name="stop_server">Stop server</string>
+    <string name="security_hint">Keep API key protection enabled when using shell, contacts, location, camera, microphone, and file tools.</string>
+
+    <string name="permissions_title">Permissions</string>
+    <string name="request_permissions">Request missing permissions</string>
+    <string name="permission_location">Location</string>
+    <string name="permission_contacts">Contacts</string>
+    <string name="permission_camera">Camera</string>
+    <string name="permission_microphone">Microphone</string>
+    <string name="permission_audio_files">Audio files</string>
+    <string name="permission_accessibility">Accessibility automation</string>
+    <string name="permission_enabled_in_settings">Enabled in settings</string>
+    <string name="permission_missing_in_settings">Enable in settings</string>
+    <string name="permission_notifications">Notifications</string>
+    <string name="permission_granted">Granted</string>
+    <string name="permission_missing">Missing</string>
+    <string name="permission_not_required">Not required on this Android version</string>
+
+    <string name="quick_connect_title">Quick Connect</string>
+    <string name="copy_config">Copy MCP config</string>
+
+    <string name="killer_use_cases_title">Killer Use Cases</string>
+    <string name="killer_use_cases_body">1) Ask your assistant for battery and location before leaving.\n2) Find contacts hands-free during desktop workflows.\n3) Run safe diagnostics on your phone without unlocking it.</string>
+
+    <string name="security_state_enabled">Security: API key enabled</string>
+    <string name="security_state_disabled">Security: API key disabled (LAN exposure risk)</string>
+    <string name="security_warning_no_key">No API key is set. Anyone on your network can access tools.</string>
+    <string name="last_error_prefix">Last error:</string>
+
+    <string name="api_key_generated">API key generated</string>
+    <string name="endpoint_copied">Endpoint copied</string>
+    <string name="config_copied">Config copied</string>
+    <string name="invalid_port">Port must be between 1 and 65535</string>
+    <string name="ip_unknown">unknown-ip</string>
+    <string name="accessibility_service_description">Allows PocketMCP to perform requested global actions and gestures.</string>
+    <string name="accessibility_service_summary">Used for MCP actions like home/back/scroll/lock screen.</string>
+</resources>

@@ -1,0 +1,54 @@
+*.iml
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+
+# Gradle / Android build outputs
+.gradle/
+.gradle-user/
+build/
+app/build/
+captures/
+.externalNativeBuild/
+.cxx/
+local.properties
+
+# Node.js dependencies
+**/node_modules/
+
+# Python artifacts
+**/__pycache__/
+*.py[cod]
+
+# Local secrets and machine-specific config
+.env
+.env.*
+*.env
+*.local
+*.local.json
+*.local.yaml
+*.local.yml
+*.local.toml
+*.local.ini
+mcp-config.json
+mcp-config.local.json
+openclaw-tools/telegram-starter/workspaces.local.json
+
+# Certificates / signing material
+*.keystore
+*.jks
+*.pem
+*.p12
+*.crt
+*.cer
+*.der
+*.key
+*.csr
+
+# Misc
+*.log
+*.hprof
+*.orig
+*.apk
