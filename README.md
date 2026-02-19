@@ -1,7 +1,7 @@
 # PocketMCP
 
 Turn your Android phone into an MCP (Model Context Protocol) server.
-AI agents and desktop scripts can call your phone for live data and actions over LAN or Tailscale.
+AI agents and desktop scripts can call your phone for live data and actions over LAN.
 
 ## Open-Source Commitment
 
@@ -84,7 +84,7 @@ The project is MIT-licensed and community contributions are welcome.
 ## Security model
 
 - API key authentication supported via `X-API-Key` (recommended).
-- Local network usage by default; use Tailscale for remote access.
+- Local network usage by default;
 - Shell tool blocks high-risk commands and enforces timeout/output limits.
 - File reads are restricted to app storage and external storage roots.
 - Loopback URLs are blocked in `http_request`.
@@ -183,7 +183,7 @@ Some tools require Android special permissions or services:
 ## Security Model
 
 - API key authentication through `X-API-Key` (recommended)
-- Local network first; remote access via private networks like Tailscale
+- Local network first
 - Shell command restrictions with timeout/output limits
 - File-read path restrictions
 - Loopback URL blocking for `http_request`
