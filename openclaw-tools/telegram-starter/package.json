@@ -1,0 +1,17 @@
+{
+  "name": "@openclaw/telegram-starter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local-first Telegram MCP tool starter for OpenClaw-style assistants",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.mjs",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

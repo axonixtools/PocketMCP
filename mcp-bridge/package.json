@@ -1,0 +1,10 @@
+{
+  "name": "pocket-mcp-bridge",
+  "version": "1.0.0",
+  "description": "Stdio-to-HTTP bridge for PocketMCP server",
+  "type": "module",
+  "main": "bridge.mjs",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0"
+  }
+}

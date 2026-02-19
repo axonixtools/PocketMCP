@@ -1,0 +1,136 @@
+{
+  "version": 1,
+  "apps": {
+    "whatsapp_business": {
+      "description": "WhatsApp Business automations",
+      "actions": {
+        "send_message_contact": {
+          "tool": "send_whatsapp_message",
+          "description": "Open WhatsApp Business, search contact, type message, and send",
+          "defaults": {
+            "whatsapp_type": "business"
+          },
+          "allowed_inputs": [
+            "contact_name",
+            "message",
+            "whatsapp_type",
+            "phone_number",
+            "strict_contact_match"
+          ],
+          "required_inputs": [
+            "contact_name",
+            "message"
+          ]
+        }
+      }
+    },
+    "whatsapp_personal": {
+      "description": "WhatsApp personal automations",
+      "actions": {
+        "send_message_contact": {
+          "tool": "send_whatsapp_message",
+          "description": "Open WhatsApp Personal, search contact, type message, and send",
+          "defaults": {
+            "whatsapp_type": "personal"
+          },
+          "allowed_inputs": [
+            "contact_name",
+            "message",
+            "whatsapp_type",
+            "phone_number",
+            "strict_contact_match"
+          ],
+          "required_inputs": [
+            "contact_name",
+            "message"
+          ]
+        }
+      }
+    },
+    "instagram": {
+      "description": "Instagram actions",
+      "actions": {
+        "search": {
+          "tool": "social_media",
+          "description": "Search on Instagram",
+          "defaults": {
+            "platform": "instagram",
+            "action": "search"
+          },
+          "allowed_inputs": [
+            "query"
+          ],
+          "required_inputs": [
+            "query"
+          ]
+        },
+        "open_profile": {
+          "tool": "social_media",
+          "description": "Open Instagram profile",
+          "defaults": {
+            "platform": "instagram",
+            "action": "open_profile"
+          },
+          "allowed_inputs": [
+            "query"
+          ],
+          "required_inputs": [
+            "query"
+          ]
+        }
+      }
+    },
+    "youtube": {
+      "description": "YouTube actions",
+      "actions": {
+        "search": {
+          "tool": "social_media",
+          "description": "Search on YouTube",
+          "defaults": {
+            "platform": "youtube",
+            "action": "search"
+          },
+          "allowed_inputs": [
+            "query"
+          ],
+          "required_inputs": [
+            "query"
+          ]
+        }
+      }
+    },
+    "x": {
+      "description": "X (Twitter) actions",
+      "actions": {
+        "search": {
+          "tool": "social_media",
+          "description": "Search on X",
+          "defaults": {
+            "platform": "x",
+            "action": "search"
+          },
+          "allowed_inputs": [
+            "query"
+          ],
+          "required_inputs": [
+            "query"
+          ]
+        },
+        "open_profile": {
+          "tool": "social_media",
+          "description": "Open X profile",
+          "defaults": {
+            "platform": "x",
+            "action": "open_profile"
+          },
+          "allowed_inputs": [
+            "query"
+          ],
+          "required_inputs": [
+            "query"
+          ]
+        }
+      }
+    }
+  }
+}
