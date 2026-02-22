@@ -5,12 +5,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Bundle
-import android.view.accessibility.AccessibilityNodeInfo
 import com.pocketmcp.accessibility.PhoneAccessibilityService
 import com.pocketmcp.server.McpToolCallResult
 import com.pocketmcp.server.McpToolHandler
-import kotlinx.coroutines.delay
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
@@ -197,16 +194,30 @@ class SocialMediaTool : McpToolHandler {
             checkpoints += captureCheckpoint("after_open", packageName)
         }
 
-        val typed = automateSearchInput(
-            expectedPackage = packageName,
-            query = query,
-            searchTriggerHints = listOf("Search", "Search and explore"),
-            searchInputIdHints = listOf("search", "search_src_text")
-        )
+        val searchExecution = if (PhoneAccessibilityService.isEnabled()) {
+            runUiSearchQuery(
+                UiSearchRequest(
+                    expectedPackage = packageName,
+                    query = query,
+                    searchTriggerHints = listOf("Search", "Search and explore"),
+                    searchInputIdHints = listOf("search", "search_src_text")
+                )
+            )
+        } else {
+            UiSearchExecution.unavailable(
+                expectedPackage = packageName,
+                error = "Accessibility service is not connected."
+            )
+        }
+        val typed = searchExecution.typed
+        if (strictScreenState && !searchExecution.success) {
+            return resultError(
+                "Safety check failed: ${searchExecution.error ?: "Instagram search query could not be typed."}"
+            )
+        }
         val queryVisible = if (!strictScreenState) true else {
-            val querySnapshot = PhoneAccessibilityService.captureScreenSnapshot(120)
             checkpoints += captureCheckpoint("query_verification", packageName)
-            snapshotContainsText(querySnapshot, query)
+            searchExecution.queryVisible
         }
 
         if (strictScreenState && (!typed || !queryVisible)) {
@@ -294,20 +305,42 @@ class SocialMediaTool : McpToolHandler {
             checkpoints += captureCheckpoint("after_open", packageName)
         }
 
-        val typed = if (openedWithQueryIntent) {
-            true
-        } else {
-            automateSearchInput(
+        val searchExecution = if (openedWithQueryIntent) {
+            UiSearchExecution(
+                success = true,
+                typed = true,
+                queryVisible = true,
+                inputFound = true,
+                triggerTapped = false,
+                popupDismissed = false,
+                submitted = true,
                 expectedPackage = packageName,
-                query = query,
-                searchTriggerHints = listOf("Search"),
-                searchInputIdHints = listOf("search", "search_edit_text")
+                actualPackage = packageName
+            )
+        } else if (PhoneAccessibilityService.isEnabled()) {
+            runUiSearchQuery(
+                UiSearchRequest(
+                    expectedPackage = packageName,
+                    query = query,
+                    searchTriggerHints = listOf("Search"),
+                    searchInputIdHints = listOf("search", "search_edit_text")
+                )
+            )
+        } else {
+            UiSearchExecution.unavailable(
+                expectedPackage = packageName,
+                error = "Accessibility service is not connected."
+            )
+        }
+        val typed = searchExecution.typed
+        if (strictScreenState && !searchExecution.success) {
+            return resultError(
+                "Safety check failed: ${searchExecution.error ?: "YouTube search query could not be typed."}"
             )
         }
         val queryVisible = if (!strictScreenState) true else {
-            val querySnapshot = PhoneAccessibilityService.captureScreenSnapshot(120)
             checkpoints += captureCheckpoint("query_verification", packageName)
-            snapshotContainsText(querySnapshot, query)
+            searchExecution.queryVisible
         }
 
         if (strictScreenState && !queryVisible) {
@@ -389,16 +422,30 @@ class SocialMediaTool : McpToolHandler {
             checkpoints += captureCheckpoint("after_open", packageName)
         }
 
-        val typed = automateSearchInput(
-            expectedPackage = packageName,
-            query = query,
-            searchTriggerHints = listOf("Search", "Search and Explore", "Explore"),
-            searchInputIdHints = listOf("search", "query")
-        )
+        val searchExecution = if (PhoneAccessibilityService.isEnabled()) {
+            runUiSearchQuery(
+                UiSearchRequest(
+                    expectedPackage = packageName,
+                    query = query,
+                    searchTriggerHints = listOf("Search", "Search and Explore", "Explore"),
+                    searchInputIdHints = listOf("search", "query")
+                )
+            )
+        } else {
+            UiSearchExecution.unavailable(
+                expectedPackage = packageName,
+                error = "Accessibility service is not connected."
+            )
+        }
+        val typed = searchExecution.typed
+        if (strictScreenState && !searchExecution.success) {
+            return resultError(
+                "Safety check failed: ${searchExecution.error ?: "X search query could not be typed."}"
+            )
+        }
         val queryVisible = if (!strictScreenState) true else {
-            val querySnapshot = PhoneAccessibilityService.captureScreenSnapshot(120)
             checkpoints += captureCheckpoint("query_verification", packageName)
-            snapshotContainsText(querySnapshot, query)
+            searchExecution.queryVisible
         }
 
         if (strictScreenState && (!typed || !queryVisible)) {
@@ -637,162 +684,6 @@ class SocialMediaTool : McpToolHandler {
             context.startActivity(fallbackIntent)
             true
         }.getOrElse { false }
-    }
-
-    private suspend fun automateSearchInput(
-        expectedPackage: String,
-        query: String,
-        searchTriggerHints: List<String>,
-        searchInputIdHints: List<String>
-    ): Boolean {
-        if (!PhoneAccessibilityService.isEnabled()) {
-            return false
-        }
-
-        delay(1400)
-
-        var attempts = 0
-        while (attempts < 8) {
-            val snapshot = PhoneAccessibilityService.captureScreenSnapshot(80)
-            if (snapshot?.packageName != expectedPackage) {
-                // Do not type into a different app; wait for the expected one.
-                attempts++
-                delay(450)
-                continue
-            }
-
-            val rootNode = PhoneAccessibilityService.getInstance()?.rootInActiveWindow
-            if (rootNode == null) {
-                attempts++
-                delay(450)
-                continue
-            }
-
-            val triggerNode = findNodeByIdHints(rootNode, searchInputIdHints)
-                ?: findNodeByContentDescriptions(rootNode, searchTriggerHints)
-            if (triggerNode != null) {
-                clickNode(triggerNode)
-                delay(500)
-            }
-
-            val inputRoot = PhoneAccessibilityService.getInstance()?.rootInActiveWindow ?: rootNode
-            val inputNode = findSearchInputNode(inputRoot, searchInputIdHints)
-            if (inputNode != null && setNodeText(inputNode, query)) {
-                delay(350)
-                val verifySnapshot = PhoneAccessibilityService.captureScreenSnapshot(120)
-                if (verifySnapshot?.packageName == expectedPackage && snapshotContainsText(verifySnapshot, query)) {
-                    return true
-                }
-            }
-
-            attempts++
-            delay(450)
-        }
-        return false
-    }
-
-    private fun findSearchInputNode(rootNode: AccessibilityNodeInfo, idHints: List<String>): AccessibilityNodeInfo? {
-        val byId = findNodeByIdHints(rootNode, idHints)
-        if (byId != null && isEditableNode(byId)) {
-            return byId
-        }
-
-        return findNode(rootNode) { node ->
-            isEditableNode(node) && (
-                (node.viewIdResourceName?.contains("search", ignoreCase = true) == true) ||
-                    (node.hintText?.toString()?.contains("search", ignoreCase = true) == true) ||
-                    (node.contentDescription?.toString()?.contains("search", ignoreCase = true) == true)
-                )
-        } ?: findNodeByClassName(rootNode, "android.widget.EditText")
-    }
-
-    private fun isEditableNode(node: AccessibilityNodeInfo): Boolean {
-        return node.className?.toString()?.contains("EditText", ignoreCase = true) == true
-    }
-
-    private fun setNodeText(node: AccessibilityNodeInfo, text: String): Boolean {
-        node.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
-        val arguments = Bundle().apply {
-            putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
-        }
-        return node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
-    }
-
-    private fun clickNode(node: AccessibilityNodeInfo?): Boolean {
-        if (node == null) return false
-        if (node.isClickable && node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
-            return true
-        }
-
-        var parent = node.parent
-        while (parent != null) {
-            if (parent.isClickable && parent.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
-                return true
-            }
-            parent = parent.parent
-        }
-        return false
-    }
-
-    private fun findNodeByIdHints(node: AccessibilityNodeInfo?, idHints: List<String>): AccessibilityNodeInfo? {
-        if (node == null) return null
-        val viewId = node.viewIdResourceName ?: ""
-        if (idHints.any { hint -> viewId.contains(hint, ignoreCase = true) }) {
-            return node
-        }
-
-        for (i in 0 until node.childCount) {
-            val found = findNodeByIdHints(node.getChild(i), idHints)
-            if (found != null) {
-                return found
-            }
-        }
-        return null
-    }
-
-    private fun findNodeByContentDescriptions(node: AccessibilityNodeInfo?, hints: List<String>): AccessibilityNodeInfo? {
-        if (node == null) return null
-        val contentDescription = node.contentDescription?.toString() ?: ""
-        if (hints.any { hint -> contentDescription.contains(hint, ignoreCase = true) }) {
-            return node
-        }
-
-        for (i in 0 until node.childCount) {
-            val found = findNodeByContentDescriptions(node.getChild(i), hints)
-            if (found != null) {
-                return found
-            }
-        }
-        return null
-    }
-
-    private fun findNodeByClassName(node: AccessibilityNodeInfo?, className: String): AccessibilityNodeInfo? {
-        if (node == null) return null
-        if (node.className?.toString()?.contains(className) == true) return node
-
-        for (i in 0 until node.childCount) {
-            val found = findNodeByClassName(node.getChild(i), className)
-            if (found != null) return found
-        }
-        return null
-    }
-
-    private fun findNode(
-        node: AccessibilityNodeInfo?,
-        predicate: (AccessibilityNodeInfo) -> Boolean
-    ): AccessibilityNodeInfo? {
-        if (node == null) return null
-        if (predicate(node)) {
-            return node
-        }
-
-        for (i in 0 until node.childCount) {
-            val found = findNode(node.getChild(i), predicate)
-            if (found != null) {
-                return found
-            }
-        }
-        return null
     }
 
     private fun isAppInstalled(context: Context, packageName: String): Boolean {

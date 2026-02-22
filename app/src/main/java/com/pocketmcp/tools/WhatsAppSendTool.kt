@@ -20,7 +20,7 @@ import kotlinx.serialization.json.putJsonObject
 class WhatsAppSendTool : McpToolHandler {
     override val name = "send_whatsapp_message"
     override val description =
-        "State-aware WhatsApp automation: verify contact screen, type message, re-check UI, then send."
+        "Send a WhatsApp message with robust, state-aware UI automation. Automatically verifies contact identity and message content on-screen before sending. Handles both WhatsApp Personal and Business variants. Reliable for deterministic, safe messaging."
 
     override val inputSchema: JsonObject = buildJsonObject {
         put("type", "object")
