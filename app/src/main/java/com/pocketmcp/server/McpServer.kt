@@ -18,14 +18,17 @@ import com.pocketmcp.tools.MessagingTool
 import com.pocketmcp.tools.NotificationTool
 import com.pocketmcp.tools.PhoneAlertTool
 import com.pocketmcp.tools.PresetAppActionsTool
+import com.pocketmcp.tools.SearchScreenTool
 import com.pocketmcp.tools.ScrollScreenTool
 import com.pocketmcp.tools.ScreenStateTool
+import com.pocketmcp.tools.SmartNotificationManager
 import com.pocketmcp.tools.SocialMediaTool
 import com.pocketmcp.tools.ShellCommandTool
 import com.pocketmcp.tools.TranscribeAudioTool
 import com.pocketmcp.tools.TranscribeFileTool
 import com.pocketmcp.tools.VolumeControlTool
 import com.pocketmcp.tools.VoiceRecordTool
+import com.pocketmcp.tools.WorkflowAutomationTool
 import com.pocketmcp.tools.WhatsAppAudioTranscribeTool
 import com.pocketmcp.tools.WhatsAppAutomationTool
 import com.pocketmcp.tools.WhatsAppBusinessSendTool
@@ -44,6 +47,7 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
+import io.ktor.websocket.*
 import io.ktor.util.pipeline.PipelineContext
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.Json
@@ -86,6 +90,7 @@ class McpServer(
         registry.register(GlobalActionTool())
         registry.register(ScrollScreenTool())
         registry.register(ScreenStateTool())
+        registry.register(SearchScreenTool())
         registry.register(VolumeControlTool())
         registry.register(PhoneAlertTool())
         registry.register(VoiceRecordTool())
@@ -104,6 +109,8 @@ class McpServer(
         registry.register(PresetAppActionsTool())
         registry.register(ScreenshotTool())
         registry.register(TapTool())
+        registry.register(WorkflowAutomationTool())
+        registry.register(SmartNotificationManager())
     }
 
     fun registerTool(tool: McpToolHandler) = registry.register(tool)
@@ -137,7 +144,7 @@ class McpServer(
                     if (!apiKey.isNullOrBlank()) {
                         val path = call.request.path()
                         val isSseStream = call.request.httpMethod == HttpMethod.Get &&
-                            (path == "/mcp" || path == "/sse")
+                            (path == "/mcp" || path == "/sse" || path == "/ws")
                         if (path != "/" && path != "/health" && !isSseStream) {
                             val provided = call.request.header("X-API-Key")
                                 ?: call.request.header(HttpHeaders.Authorization)?.removePrefix("Bearer ")
@@ -162,11 +169,11 @@ class McpServer(
                         put("port", port)
                         put("tools", registry.getAll().size)
                         put(
-                            "endpoints",
-                            buildJsonArray {
+                            "endpoints", buildJsonArray {
                                 add(JsonPrimitive("/mcp"))
                                 add(JsonPrimitive("/sse"))
                                 add(JsonPrimitive("/health"))
+                                add(JsonPrimitive("/ws"))
                             }
                         )
                     }
@@ -225,6 +232,44 @@ class McpServer(
 
                 get("/sse") {
                     streamSse()
+                }
+
+                webSocket("/ws") {
+                    Log.i(TAG, "WebSocket client connected.")
+                    try {
+                        for (frame in incoming) {
+                            if (frame is Frame.Text) {
+                                val body = frame.readText()
+                                Log.d(TAG, "WS MCP request: $body")
+
+                                val request = try {
+                                    json.decodeFromString<JsonRpcRequest>(body)
+                                } catch (e: Exception) {
+                                    val error = JsonRpcResponse(
+                                        error = JsonRpcError(McpErrorCodes.PARSE_ERROR, "Parse error: \${e.message}")
+                                    )
+                                    val responseJson = encodeJsonRpcResponse(error)
+                                    Log.d(TAG, "WS MCP response (parse error): $responseJson")
+                                    send(Frame.Text(responseJson))
+                                    continue
+                                }
+
+                                if (request.id == null) {
+                                    handleNotification(request)
+                                    continue
+                                }
+
+                                val response = handleRequest(request)
+                                val responseJson = encodeJsonRpcResponse(response)
+                                Log.d(TAG, "WS MCP response: $responseJson")
+                                send(Frame.Text(responseJson))
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "WebSocket error: \${e.message}")
+                    } finally {
+                        Log.i(TAG, "WebSocket client disconnected.")
+                    }
                 }
 
                 get("/tools") {

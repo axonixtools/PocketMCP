@@ -12,7 +12,7 @@ import kotlinx.serialization.json.putJsonObject
 class HumanCommandTool : McpToolHandler {
     override val name = "human_command"
     override val description =
-        "Use natural language commands. Auto-routes to messaging, phone alert, recording, transcription, app launch, and notifications."
+        "Ultimate fast-path for natural language execution. Ingests raw user instructions (e.g., 'text John on whatsapp hello') and autonomously routes, executes, and verifies the entire flow in one turn. Use this to process broad human requests instantly without step-by-step reasoning."
 
     override val inputSchema: JsonObject = buildJsonObject {
         put("type", "object")
@@ -41,6 +41,10 @@ class HumanCommandTool : McpToolHandler {
                 put("type", "string")
                 put("description", "Fallback WhatsApp type for ambiguous commands: business or personal (default: business).")
             }
+            putJsonObject("include_routing_debug") {
+                put("type", "boolean")
+                put("description", "Optional. When true, include interpreted route metadata in output (default: false).")
+            }
         }
     }
 
@@ -54,6 +58,7 @@ class HumanCommandTool : McpToolHandler {
             ?: return resultError(
                 "Could not interpret command. Try examples: " +
                     "'send message to Fahad on whatsapp bussiness hello', " +
+                    "'open google and search axonix tools', " +
                     "'vibrate my phone for 8 seconds', " +
                     "'record voice for 10 seconds', " +
                     "'transcribe this /storage/...m4a'."
@@ -63,6 +68,11 @@ class HumanCommandTool : McpToolHandler {
             ?: return resultError("Internal routing error: unsupported target tool ${route.toolName}")
         val delegateResult = delegate.execute(route.arguments, context)
         if (delegateResult.isError) {
+            return delegateResult
+        }
+
+        val includeRoutingDebug = argBoolean(args, "include_routing_debug") ?: false
+        if (!includeRoutingDebug) {
             return delegateResult
         }
 
@@ -95,6 +105,7 @@ class HumanCommandTool : McpToolHandler {
             "transcribe_whatsapp_audio" -> WhatsAppAudioTranscribeTool()
             "launch_app" -> LaunchAppTool()
             "social_media" -> SocialMediaTool()
+            "search_screen" -> SearchScreenTool()
             "notifications" -> NotificationTool()
             "global_action" -> GlobalActionTool()
             else -> null
@@ -113,6 +124,8 @@ class HumanCommandTool : McpToolHandler {
         parseTranscribeRoute(command, lower, args)?.let { return it }
         parseNotificationsRoute(lower)?.let { return it }
         parseSocialSearchRoute(command)?.let { return it }
+        parseOpenAndSearchRoute(command)?.let { return it }
+        parseCurrentScreenSearchRoute(command)?.let { return it }
         parseLaunchAppRoute(command, lower)?.let { return it }
         return null
     }
@@ -349,6 +362,74 @@ class HumanCommandTool : McpToolHandler {
         )
     }
 
+    private fun parseOpenAndSearchRoute(command: String): CommandRoute? {
+        val p1 = Regex(
+            "(?:open|launch)\\s+(google\\s*chrome|chrome|google|browser)\\s+(?:and|then)?\\s*(?:search|find|look\\s*up|lookup)\\s+(.+)",
+            RegexOption.IGNORE_CASE
+        )
+        val p2 = Regex(
+            "(?:search|find|look\\s*up|lookup)\\s+(.+?)\\s+(?:on|in)\\s+(google\\s*chrome|chrome|google|browser)",
+            RegexOption.IGNORE_CASE
+        )
+
+        val m1 = p1.find(command)
+        val m2 = if (m1 == null) p2.find(command) else null
+        val appRaw: String
+        val queryRaw: String
+        when {
+            m1 != null -> {
+                appRaw = m1.groupValues[1]
+                queryRaw = m1.groupValues[2]
+            }
+            m2 != null -> {
+                queryRaw = m2.groupValues[1]
+                appRaw = m2.groupValues[2]
+            }
+            else -> return null
+        }
+
+        val appName = normalizeSearchAppName(appRaw) ?: return null
+        val query = queryRaw.trim().trim('.', '!', '?')
+        if (query.isBlank()) {
+            return null
+        }
+
+        return CommandRoute(
+            intent = "open_and_search",
+            toolName = "search_screen",
+            arguments = buildJsonObject {
+                put("action", "search")
+                put("app_name", appName)
+                put("query", query)
+                put("close_popups", true)
+                put("submit", true)
+            }
+        )
+    }
+
+    private fun parseCurrentScreenSearchRoute(command: String): CommandRoute? {
+        val match = Regex(
+            "^(?:search|find|look\\s*up|lookup)\\s+(.+)$",
+            RegexOption.IGNORE_CASE
+        ).find(command.trim()) ?: return null
+
+        val query = match.groupValues[1].trim().trim('.', '!', '?')
+        if (query.isBlank()) {
+            return null
+        }
+
+        return CommandRoute(
+            intent = "search_current_screen",
+            toolName = "search_screen",
+            arguments = buildJsonObject {
+                put("action", "search")
+                put("query", query)
+                put("close_popups", true)
+                put("submit", true)
+            }
+        )
+    }
+
     private fun parseLaunchAppRoute(command: String, lower: String): CommandRoute? {
         if (lower.contains("send message") || lower.contains("transcribe")) {
             return null
@@ -401,6 +482,18 @@ class HumanCommandTool : McpToolHandler {
         return when {
             compact.contains("personal") || compact == "normal" || compact == "regular" -> "personal"
             compact.contains("business") || compact.contains("bussiness") || compact.contains("buisness") || compact == "w4b" -> "business"
+            else -> null
+        }
+    }
+
+    private fun normalizeSearchAppName(raw: String?): String? {
+        if (raw.isNullOrBlank()) {
+            return null
+        }
+        val compact = raw.lowercase().replace(Regex("[^a-z0-9]+"), "")
+        return when {
+            compact.contains("chrome") -> "Chrome"
+            compact.contains("google") || compact.contains("browser") -> "Google"
             else -> null
         }
     }

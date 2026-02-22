@@ -19,6 +19,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import android.net.nsd.NsdServiceInfo
+import android.net.nsd.NsdManager
+import android.util.Log
 
 class McpServerService : Service() {
 
@@ -46,6 +49,10 @@ class McpServerService : Service() {
     private var apiKey: String? = null
     private var lastError: String? = null
 
+    // mDNS variables
+    private var nsdManager: NsdManager? = null
+    private var registrationListener: NsdManager.RegistrationListener? = null
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -71,6 +78,7 @@ class McpServerService : Service() {
     }
 
     override fun onDestroy() {
+        tearDownMdns()
         mcpServer?.stop()
         mcpServer = null
         serviceScope.cancel()
@@ -97,6 +105,7 @@ class McpServerService : Service() {
                 lastError = null
                 updateNotification(getString(R.string.server_running_notification, currentPort))
                 broadcastStatus("Running")
+                setupMdns(currentPort)
             }.onFailure { error ->
                 val message = error.message ?: "Unknown server error"
                 lastError = message
@@ -111,6 +120,7 @@ class McpServerService : Service() {
         serviceScope.launch {
             runCatching {
                 mcpServer?.stop()
+                tearDownMdns()
             }
             mcpServer = null
             lastError = null
@@ -176,6 +186,47 @@ class McpServerService : Service() {
             .setContentIntent(contentIntent)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
+    }
+
+    private fun setupMdns(port: Int) {
+        nsdManager = getSystemService(Context.NSD_SERVICE) as? NsdManager
+        if (nsdManager == null) return
+
+        val serviceInfo = NsdServiceInfo().apply {
+            serviceName = "PocketMCP-${Build.MODEL}"
+            serviceType = "_mcp._tcp."
+            setPort(port)
+        }
+
+        registrationListener = object : NsdManager.RegistrationListener {
+            override fun onServiceRegistered(NsdServiceInfo: NsdServiceInfo) {
+                Log.d("McpServerService", "mDNS Service registered: \${NsdServiceInfo.serviceName}")
+            }
+            override fun onRegistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
+                Log.e("McpServerService", "mDNS Registration failed: $errorCode")
+            }
+            override fun onServiceUnregistered(arg0: NsdServiceInfo) {
+                Log.d("McpServerService", "mDNS Service unregistered")
+            }
+            override fun onUnregistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
+                Log.e("McpServerService", "mDNS Unregistration failed: $errorCode")
+            }
+        }
+
+        try {
+            nsdManager?.registerService(serviceInfo, NsdManager.PROTOCOL_DNS_SD, registrationListener)
+        } catch (e: Exception) {
+            Log.e("McpServerService", "Failed to register mDNS: \${e.message}")
+        }
+    }
+
+    private fun tearDownMdns() {
+        try {
+            registrationListener?.let { nsdManager?.unregisterService(it) }
+        } catch (e: Exception) {
+            Log.e("McpServerService", "Failed to unregister mDNS: \${e.message}")
+        }
+        registrationListener = null
     }
 
 }

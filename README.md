@@ -40,6 +40,7 @@ The project is MIT-licensed and community contributions are welcome.
 | `list_apps`           | List launchable installed apps (309+ apps detected)               |
 | `global_action`       | Home/back/recents/notifications/quick settings/lock screen        |
 | `scroll_screen`       | Scroll current app via accessibility gesture                      |
+| `search_screen`       | Find search input on current screen and type query safely         |
 | `tap`                 | Tap by visible text/content description or screen coordinates     |
 | `volume_control`      | Read and change stream volume levels                              |
 | `phone_alert`         | Ring and/or vibrate phone to help locate it quickly               |
@@ -139,6 +140,26 @@ curl -X POST http://192.168.1.100:8080/mcp \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 ```
 
+### Emulator connection (Android Studio AVD)
+
+If PocketMCP runs inside an Android emulator, do **not** use `10.0.2.15` from your host MCP client config.
+
+Use ADB port forwarding and localhost:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\setup-emulator-mcp.ps1
+```
+
+Then set MCP URL to:
+
+```text
+http://127.0.0.1:8080/mcp
+```
+
+Notes:
+- `10.0.2.15` is emulator-internal (not host-reachable).
+- `10.0.2.2` is for emulator -> host, not host -> emulator.
+
 ## MCP Client Config Example
 
 Use `mcp-config.example.json` as a template.
@@ -157,6 +178,34 @@ Use `mcp-config.example.json` as a template.
 }
 ```
 
+## Stdio Bridge (for stdio-only MCP clients)
+
+PocketMCP includes a hardened stdio bridge in `mcp-bridge/bridge.mjs` that proxies stdio MCP calls to your phone's HTTP MCP endpoint.
+
+```bash
+cd mcp-bridge
+npm install
+node bridge.mjs --url http://192.168.1.100:8080/mcp --api-key your-api-key --verbose
+```
+
+Bridge configuration options:
+
+- `--url`: target phone MCP URL (auto-adds `http://` if missing)
+- `--api-key`: API key sent as `X-API-Key`
+- `--timeout-ms`: per-request timeout (default `20000`)
+- `--tools-ttl-ms`: tool cache TTL (default `30000`)
+- `--no-tool-cache`: disable tool caching
+- `--verbose`: emit detailed bridge logs to stderr
+
+Equivalent environment variables:
+
+- `POCKET_MCP_URL`
+- `POCKET_MCP_API_KEY`
+- `POCKET_MCP_TIMEOUT_MS`
+- `POCKET_MCP_TOOLS_TTL_MS`
+- `POCKET_MCP_DISABLE_TOOL_CACHE=1`
+- `POCKET_MCP_VERBOSE=1`
+
 ## Python Client Example
 
 ```python
@@ -168,6 +217,21 @@ print(phone.device_info())
 print(phone.list_apps(limit=25))
 print(phone.notifications("list", 10))
 print(phone.human_command("vibrate my phone for 5 seconds"))
+```
+
+Python client now includes retries, typed exceptions, stricter argument validation, and a CLI:
+
+```bash
+# health check (default action)
+python3 pocket_mcp_client.py 192.168.1.100:8080 your-api-key
+
+# list tools
+python3 pocket_mcp_client.py 192.168.1.100:8080 your-api-key --list-tools
+
+# call one tool with JSON args
+python3 pocket_mcp_client.py 192.168.1.100:8080 your-api-key \
+  --call send_message \
+  --args '{"app":"whatsapp","phone_number":"+15551234567","message":"hello from desktop"}'
 ```
 
 ## Permissions

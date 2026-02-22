@@ -8,6 +8,7 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.BatteryManager
 import android.os.Build
+import com.pocketmcp.server.McpContent
 import com.pocketmcp.server.McpToolCallResult
 import com.pocketmcp.server.McpToolHandler
 import kotlinx.serialization.json.JsonObject
@@ -18,7 +19,7 @@ import java.net.NetworkInterface
 
 class DeviceInfoTool : McpToolHandler {
     override val name = "device_info"
-    override val description = "Battery, model, OS, network, and memory details."
+    override val description = "Retrieve precise, real-time diagnostic information about the Android device. Includes battery level, charging status, OS version, active network interface, memory usage, and IP address. Use this to check device status before resource-heavy operations."
     override val inputSchema: JsonObject = buildJsonObject {
         put("type", "object")
         putJsonObject("properties") { }
@@ -90,5 +91,11 @@ class DeviceInfoTool : McpToolHandler {
         } catch (_: Exception) {
             "unknown"
         }
+    }
+
+    private fun resultJson(result: JsonObject): McpToolCallResult {
+        return McpToolCallResult(
+            content = listOf(McpContent("application/json", text = result.toString()))
+        )
     }
 }

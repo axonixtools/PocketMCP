@@ -4,6 +4,7 @@ import com.pocketmcp.server.McpContent
 import com.pocketmcp.server.McpToolCallResult
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
@@ -44,4 +45,18 @@ internal fun argDouble(args: JsonObject?, key: String): Double? {
 
 internal fun argBoolean(args: JsonObject?, key: String): Boolean? {
     return args?.get(key)?.jsonPrimitive?.booleanOrNull
+}
+
+internal fun argStringList(args: JsonObject?, key: String): List<String>? {
+    val value = args?.get(key) as? JsonArray ?: return null
+    return value.mapNotNull { it.jsonPrimitive.contentOrNull?.trim() }
+        .filter { it.isNotBlank() }
+}
+
+internal fun argJsonObject(args: JsonObject?, key: String): JsonObject? {
+    return args?.get(key) as? JsonObject
+}
+
+internal fun argJsonArray(args: JsonObject?, key: String): JsonArray? {
+    return args?.get(key) as? JsonArray
 }
