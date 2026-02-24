@@ -3,6 +3,11 @@
 Turn your Android phone into an MCP (Model Context Protocol) server.
 AI agents and desktop scripts can call your phone for live data and actions over LAN or Tailscale.
 
+## Download (Testing Pre-release)
+
+- Latest testing release: [v1.0.0-beta.1](https://github.com/axonixtools/PocketMCP/releases/tag/v1.0.0-beta.1)
+- This build is marked as pre-release and may contain bugs while active development continues.
+
 ## Open-Source Commitment
 
 PocketMCP is fully open-source and core functionality is free.
@@ -102,7 +107,18 @@ The project is MIT-licensed and community contributions are welcome.
 
 ## Quick start
 
-### 1) Build and install
+### 1) Install app
+
+Option A: install from pre-release APK
+
+- Download `PocketMCP-debug.apk` from [v1.0.0-beta.1](https://github.com/axonixtools/PocketMCP/releases/tag/v1.0.0-beta.1)
+- Install with ADB:
+
+```bash
+adb install -r PocketMCP-debug.apk
+```
+
+Option B: build from source and install
 
 ```bash
 ./gradlew assembleDebug
@@ -127,7 +143,7 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 - **Notifications**: Settings > Apps > Special Access > Notification Access
 - **Accessibility**: Settings > Apps > Special Access > Accessibility Services
 
-### 3) Verify server
+### 4) Verify server
 
 ```bash
 # health

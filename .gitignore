@@ -52,3 +52,4 @@ openclaw-tools/telegram-starter/workspaces.local.json
 *.hprof
 *.orig
 *.apk
+.gradle-user-home
