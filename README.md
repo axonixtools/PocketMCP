@@ -1,3 +1,5 @@
+
+
 # PocketMCP
 
 Turn your Android phone into an MCP (Model Context Protocol) server.
@@ -137,9 +139,13 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 
 **Required for full functionality:**
 
-- **Phone**: CALL_PHONE permission in app settings
-- **Microphone**: RECORD_AUDIO permission in app settings
-- **SMS**: SEND_SMS, READ_SMS permissions
+- **Location**: `ACCESS_FINE_LOCATION` (auto-requested on launch)
+- **Contacts**: `READ_CONTACTS` (auto-requested on launch)
+- **Camera**: `CAMERA` (auto-requested on launch)
+- **Phone**: `CALL_PHONE` permission in app settings
+- **Microphone**: `RECORD_AUDIO` permission in app settings
+- **SMS**: `SEND_SMS`, `READ_SMS` permissions
+- **Audio/Storage**: `READ_MEDIA_AUDIO` or `READ_EXTERNAL_STORAGE` (auto-requested)
 - **Notifications**: Settings > Apps > Special Access > Notification Access
 - **Accessibility**: Settings > Apps > Special Access > Accessibility Services
 
