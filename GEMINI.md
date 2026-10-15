@@ -6,9 +6,9 @@ This project turns an Android device into a [Model Context Protocol (MCP)](https
 
 - **Type**: Android Application (Kotlin) + MCP Server.
 - **Key Technologies**:
-    - **Language**: Kotlin 1.9.20.
+    - **Language**: Kotlin 2.2.10.
     - **Server**: Ktor 2.3.7 (Netty engine) supporting HTTP POST, SSE, and WebSockets.
-    - **UI**: Jetpack Compose (Material 3) + Legacy XML ViewBinding.
+    - **UI**: Jetpack Compose (Material 3).
     - **Automation**: Android `AccessibilityService` for UI interaction and `NotificationListenerService` for monitoring.
     - **Protocol**: MCP Protocol version `2024-11-05`.
 
@@ -28,6 +28,7 @@ This project turns an Android device into a [Model Context Protocol (MCP)](https
 
 ### Key Commands
 - **Build Debug APK**: `./gradlew assembleDebug`
+- **Run Unit Tests**: `./gradlew testDebugUnitTest`
 - **Install APK**: `adb install -r app/build/outputs/apk/debug/app-debug.apk`
 - **Clean Project**: `./gradlew clean`
 - **Emulator Setup**: `powershell -ExecutionPolicy Bypass -File .\scripts\setup-emulator-mcp.ps1` (for port forwarding).
@@ -51,8 +52,10 @@ This project turns an Android device into a [Model Context Protocol (MCP)](https
 - **Security**: The `ShellCommandTool` has a strict safety filter; never bypass it without explicit user instruction.
 
 ### Testing
-- Currently, the project has minimal automated tests. 
-- **TODO**: Add unit tests in `src/test/java/` and instrumented tests in `src/androidTest/java/`.
+- JVM unit tests live in `app/src/test/java/` and run with `./gradlew testDebugUnitTest`.
+- They cover the API-key guard/throttling, JSON-RPC codec, shell safety filter, tool helpers, and the agent NLU/planner layer.
+- CI (`.github/workflows/ci.yml`) runs the build and unit tests on every push/PR.
+- Instrumented tests (if added) belong in `src/androidTest/java/`.
 
 ## Key Files & Directories
 - `app/src/main/java/com/pocketmcp/server/McpServer.kt`: The heartbeat of the MCP server.

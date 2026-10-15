@@ -9,7 +9,7 @@ PocketMCP is an **Android application** that turns a phone into an [MCP (Model C
 - **App package**: `com.pocketmcp`
 - **Language**: Kotlin (Android)
 - **License**: MIT
-- **Server version** (hard-coded in `McpServer.kt`): `0.2.6`
+- **Server version**: derived from the Gradle `versionName` (`1.0.0-beta.2`) via `BuildConfig.VERSION_NAME` in `McpServer.kt`
 - **Protocol version**: `2024-11-05`
 
 ### Repository Layout
@@ -18,15 +18,21 @@ PocketMCP is an **Android application** that turns a phone into an [MCP (Model C
 phone-mcp/
 ├── app/                          # Android app module (Gradle subproject)
 │   ├── src/main/java/com/pocketmcp/
-│   │   ├── MainActivity.kt       # Single activity UI (XML + View-based, not Compose screens)
+│   │   ├── MainActivity.kt       # Single-activity Compose host + app state
 │   │   ├── accessibility/        # PhoneAccessibilityService.kt
+│   │   ├── agent/                # Experimental orchestration (NLU -> plan -> execute)
+│   │   ├── security/             # SecurePrefs (Keystore-encrypted storage)
 │   │   ├── server/               # Ktor MCP HTTP/WebSocket server + JSON-RPC types
 │   │   ├── service/              # McpServerService (Android foreground service)
-│   │   └── tools/                # ~30+ MCP tool implementations
-│   ├── src/main/res/             # XML layouts, drawables, colors, strings
+│   │   ├── tools/                # ~35 MCP tool implementations
+│   │   ├── ui/                   # Compose theme, components, screens
+│   │   └── util/                 # ApiKeyGenerator, McpConfigBuilder
+│   ├── src/main/res/             # strings, colors, drawables
 │   ├── src/main/assets/          # app_action_presets.json (human-intelligence presets)
 │   ├── src/main/AndroidManifest.xml
+│   ├── src/test/java/            # JVM unit tests (JUnit 4)
 │   └── build.gradle.kts          # App-level build config
+├── .github/workflows/            # CI: build + unit tests on push/PR
 ├── mcp-bridge/                   # Node.js stdio-to-HTTP MCP bridge
 │   ├── bridge.mjs                # Main entry point
 │   └── package.json
@@ -54,14 +60,15 @@ phone-mcp/
 
 | Layer | Technology |
 |-------|-----------|
-| Build system | Gradle 9.0-milestone-1 (wrapper), Kotlin DSL |
-| Android Gradle Plugin | `8.13.2` |
-| Kotlin | `1.9.20` |
+| Build system | Gradle 9.4.1 (wrapper), Kotlin DSL |
+| Android Gradle Plugin | `9.2.0` |
+| Kotlin | `2.2.10` (Compose compiler plugin `2.2.10`) |
 | Compile SDK | `34` |
 | Min SDK | `26` (Android 8.0) |
 | Target SDK | `34` |
 | JVM target | `1.8` |
-| UI framework | XML layouts + Jetpack Compose (BOM `2024.02.00`, compiler `1.5.4`) — the app is currently view-based with Compose enabled for future migration |
+| Build JDK | 17+ required; CI and local dev use 21 |
+| UI framework | Jetpack Compose (Material 3, BOM `2024.02.00`) — Compose is the primary UI |
 | HTTP server | Ktor `2.3.7` (Netty engine, CORS, WebSockets, content negotiation) |
 | Serialization | kotlinx-serialization-json `1.6.0` |
 | Coroutines | kotlinx-coroutines-android `1.7.3` |
@@ -87,6 +94,9 @@ phone-mcp/
 # Debug build
 ./gradlew assembleDebug
 
+# Unit tests (JVM, no device needed)
+./gradlew testDebugUnitTest
+
 # Install debug APK
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 
@@ -94,7 +104,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ./gradlew clean
 ```
 
-The pre-release APK in the repo root (`PocketMCP-debug.apk`) is a manually built artifact.
+A pre-release APK may be present at the repo root (`PocketMCP-debug.apk`) as a locally built artifact; it is untracked (`.gitignore` excludes `*.apk`).
 
 ### Node.js Bridge
 
@@ -122,11 +132,12 @@ python -c "from pocket_mcp_client import PocketMCPClient; c = PocketMCPClient('h
 
 ### Package Structure (`app/src/main/java/com/pocketmcp`)
 
-- **`MainActivity.kt`** — View-binding based dashboard with 4 pages (Server, Logs, Tools, Settings) driven by `BottomNavigationView` and `ViewAnimator`. Handles server start/stop via intents to `McpServerService`, API key generation, permission state checks, and connection info rendering.
+- **`MainActivity.kt`** — Single-activity Compose host for the 4-tab dashboard (Server, Logs, Tools, Settings). Handles server start/stop via intents to `McpServerService`, API-key generation via `util/ApiKeyGenerator`, permission state checks, and connection info rendering. The API key is persisted through `security/SecurePrefs` (Android Keystore-encrypted, with one-time migration from the legacy plaintext key).
 - **`accessibility/`** — `PhoneAccessibilityService` extends Android `AccessibilityService`. Provides global actions (home, back, recents, lock), screen gestures (swipe, tap), screen snapshot capture (accessibility tree traversal), and node-based UI interaction.
 - **`server/`** —
-  - `McpServer.kt` — Ktor embedded Netty server. Exposes endpoints: `GET /`, `GET /health`, `POST /mcp`, `GET /mcp` (SSE), `GET /sse`, `/ws` (WebSocket), `GET /tools`. Handles JSON-RPC `initialize`, `tools/list`, `tools/call`.
-  - `McpJsonRpc.kt` — Serializable data classes for JSON-RPC and MCP types.
+  - `McpServer.kt` — Ktor embedded Netty server. Exposes endpoints: `GET /`, `GET /health`, `POST /mcp`, `GET /mcp` (SSE), `GET /sse`, `/ws` (WebSocket), `GET /tools`. Handles JSON-RPC `initialize`, `tools/list`, `tools/call`. All endpoints except `/` and `/health` require the API key (header, bearer, or `?key=` query parameter).
+  - `McpJsonRpc.kt` — Serializable data classes for JSON-RPC and MCP types, plus the shared `encodeJsonRpcResponse` wire encoder used by all transports.
+  - `ApiKeyGuard.kt` — API-key validation plus per-host throttling of failed attempts (HTTP 429 after 10 failures/minute).
   - `McpToolHandler.kt` — Interface that every tool implements (`name`, `description`, `inputSchema`, `execute`).
 - **`service/`** — `McpServerService` is an Android `Service` that runs the Ktor server in a foreground notification. Supports actions: `START`, `STOP`, `QUERY_STATUS`. Broadcasts status back to `MainActivity`. Also registers mDNS (`_mcp._tcp`) via `NsdManager` when the server starts.
 - **`tools/`** — One Kotlin file per MCP tool. Tools are registered into `McpToolRegistry` inside `McpServer.init`. There are ~35 tools covering:
@@ -160,9 +171,9 @@ python -c "from pocket_mcp_client import PocketMCPClient; c = PocketMCPClient('h
 
 ### Resources
 
-- `activity_main.xml` is the single root layout with 4 child page layouts.
+- The UI is built with Jetpack Compose (`ui/screens`, `ui/components`, `ui/theme`); `res/` holds strings, colors, drawables, and manifest resources.
 - Strings are fully externalized in `res/values/strings.xml`.
-- Colors and drawables use a custom dark theme (`Theme.PocketMCP`).
+- Compose theme tokens live in `ui/theme/`; legacy resource colors in `res/values/colors.xml`.
 
 ---
 
@@ -177,11 +188,12 @@ The server supports three transports simultaneously on the same port:
 
 ### Authentication
 
-If an API key is configured, every non-public endpoint requires either:
+If an API key is configured, every non-public endpoint requires one of:
 - Header `X-API-Key: <key>`
 - Header `Authorization: Bearer <key>`
+- Query parameter `?key=<key>` or `?api_key=<key>` (for WebSocket/SSE handshakes that cannot set custom headers)
 
-Public endpoints (no key required): `GET /`, `GET /health`, SSE/WebSocket handshake paths.
+Public endpoints (no key required): `GET /` and `GET /health` only. WebSocket and SSE handshakes are authenticated like every other endpoint. After 10 failed attempts from one host within a minute, the server responds `429 Too Many Requests` until the window expires (`server/ApiKeyGuard.kt`).
 
 ### Supported JSON-RPC Methods
 
@@ -204,8 +216,10 @@ Defined in `McpJsonRpc.kt`:
 
 ## Security Model
 
-- **API key auth** is strongly recommended and generated by the app UI.
-- **Shell tool** blocks dangerous fragments (`rm -rf`, `mkfs`, `dd`, `reboot`, `poweroff`, fork bombs, `setenforce 0`, `pm uninstall`). Max command length 500 chars, timeout 1–30s, output truncated to 12,000 chars.
+- **API key auth** is strongly recommended, generated by the app UI, and enforced on every endpoint except `GET /` and `GET /health` — including `/ws` and SSE handshakes. Clients pass it via `X-API-Key`, `Authorization: Bearer`, or `?key=` (for handshakes that cannot set custom headers).
+- **Encrypted key storage**: `security/SecurePrefs` uses `EncryptedSharedPreferences` backed by the Android Keystore; a legacy plaintext key (if present) is migrated automatically on first launch.
+- **Brute-force throttling**: failed auth attempts are counted per client host (`server/ApiKeyGuard.kt`); exceeding 10 failures in 60 seconds returns HTTP 429.
+- **Shell tool** blocks dangerous fragments (`rm -rf`/`rm -fr`/`rm -r -f`/`rm -f -r`, `mkfs`, `dd if=`, `reboot`, `poweroff`, `halt`, `fastboot`, fork bombs, `setenforce 0`, `pm uninstall`). Max command length 500 chars, timeout 1–30s, output truncated to 12,000 chars. This is a best-effort speed bump, not a sandbox.
 - **File reads** are restricted to app storage and external storage roots.
 - **HTTP proxy tool** (`http_request`) blocks loopback URLs.
 - **Safety filter** mode cycles between `Strict`, `Balanced`, and `Off` in the UI; some tools use this to gate behavior.
@@ -230,21 +244,31 @@ Many tools need special permissions or services enabled by the user in system se
 
 ## Testing Strategy
 
-**Current state**: The project has **no automated tests**. There are no `test/` or `androidTest/` source directories.
+**Current state**: JVM unit tests live in `app/src/test/java/` and run with `./gradlew testDebugUnitTest` (no device required).
 
-If you add tests:
-- Use `src/test/java/` for JVM unit tests (mock Ktor/tool logic with standard JUnit 4).
+Covered today:
+- `server/ApiKeyGuardTest` — auth decisions + per-host throttling windows
+- `server/JsonRpcCodecTest` — JSON-RPC wire encoding for all transports
+- `tools/ShellCommandSafetyTest` — shell safety filter (blocked + allowed cases)
+- `tools/ToolResultUtilsTest`, `tools/McpToolRegistryTest` — tool plumbing
+- `agent/nlu/CommandParserTest`, `agent/planner/TaskGraphBuilderTest` — NLU parsing + task planning
+- `util/ApiKeyGeneratorTest`, `util/McpConfigBuilderTest` — key/config generation
+
+CI (`.github/workflows/ci.yml`) runs `assembleDebug` + `testDebugUnitTest` on push/PR.
+
+Conventions:
+- Keep unit tests pure JVM — avoid Android framework calls (`Looper`, real `Context`, etc.). `testOptions { unitTests.isReturnDefaultValues = true }` is enabled as a safety net.
 - Use `src/androidTest/java/` for instrumented tests (requires an emulator or device).
-- The `build.gradle.kts` already declares `testImplementation("junit:junit:4.13.2")`, `androidx.test.ext:junit`, and `espresso-core`.
+- The `build.gradle.kts` declares `testImplementation("junit:junit:4.13.2")`, `androidx.test.ext:junit`, and `espresso-core`.
 
 ---
 
 ## Deployment / Distribution
 
 - **APK builds** are produced manually via `./gradlew assembleDebug`.
-- The repo includes a checked-in `PocketMCP-debug.apk` at the root for pre-release distribution.
+- Release artifacts are distributed via GitHub Releases; a locally built `PocketMCP-debug.apk` may exist at the repo root but is not tracked by git.
 - GitHub Releases are used for beta builds (see `README.md`).
-- There is no CI/CD pipeline, Play Store integration, or automated signing configuration in the repo.
+- CI (`.github/workflows/ci.yml`) builds the debug APK and runs unit tests on every push/PR. There is no Play Store integration or automated signing configuration yet.
 
 ---
 
@@ -273,9 +297,9 @@ If you need a raw HTTP endpoint (not MCP JSON-RPC), add it inside the Ktor `rout
 
 ### UI Changes
 
-- The UI is **not** Compose-first yet. `MainActivity` uses XML layouts via `findViewById`. Compose is enabled in the build but is not the primary UI layer.
+- The UI is Compose-first: screens in `ui/screens/`, reusable components in `ui/components/`, theme tokens in `ui/theme/`. `MainActivity` hosts the navigation + shared app state.
 - Strings belong in `res/values/strings.xml`.
-- Colors belong in `res/values/colors.xml`.
+- Colors belong in `ui/theme/` (Compose tokens); legacy resource colors in `res/values/colors.xml`.
 - Drawables belong in `res/drawable/`.
 
 ### Logging
@@ -299,6 +323,8 @@ If you need a raw HTTP endpoint (not MCP JSON-RPC), add it inside the Ktor `rout
 3. **Foreground service types**: `McpServerService` declares `dataSync|microphone`. If you add tools requiring other foreground service types (e.g. `camera`, `location`), update the manifest and `AndroidManifest.xml` accordingly.
 4. **mDNS registration** happens only when the server successfully starts. It is torn down in `onDestroy()`.
 5. **Tool name collisions** will throw `IllegalArgumentException` from `McpToolRegistry.register()`.
+6. **Build environment**: Gradle requires **JDK 17+** (CI and local dev use JDK 21) and an Android SDK with platform 34 + build-tools installed. Configure `sdk.dir` in `local.properties`.
+7. **WebSocket/SSE clients**: when an API key is set, the handshake must include the key (`X-API-Key` header, or `?key=` in the URL for clients that cannot set headers). The stdio bridge and Python client already send it.
 
 ---
 

@@ -1,5 +1,7 @@
 # PocketMCP
 
+[![CI](https://github.com/axonixtools/PocketMCP/actions/workflows/ci.yml/badge.svg)](https://github.com/axonixtools/PocketMCP/actions/workflows/ci.yml)
+
 Turn your Android phone into an MCP (Model Context Protocol) server.
 AI agents and desktop scripts can call your phone for live data and actions over LAN or Tailscale.
 
@@ -117,9 +119,12 @@ PocketMCP features a **custom-built Jetpack Compose UI** with a premium "Neural 
 
 ## Security model
 
-- API key authentication supported via `X-API-Key` (recommended).
+- **API key authentication on every endpoint** (except `GET /` and `GET /health`), including the WebSocket and SSE handshakes.
+- Clients may send the key as `X-API-Key`, `Authorization: Bearer <key>`, or `?key=<key>` (query parameter, for WebSocket/SSE clients that cannot set headers).
+- The API key is stored **encrypted** on the phone using Android Keystore-backed `EncryptedSharedPreferences`.
+- Repeated failed authentication attempts are throttled per client host (HTTP 429).
 - Local network usage by default; use Tailscale for remote access.
-- Shell tool blocks high-risk commands and enforces timeout/output limits.
+- Shell tool blocks high-risk commands and enforces timeout/output limits (best-effort filter, not a sandbox).
 - File reads are restricted to app storage and external storage roots.
 - Loopback URLs are blocked in `http_request`.
 - **Accessibility Service**: Required for advanced automation features.
@@ -337,12 +342,13 @@ python3 pocket_mcp_client.py 192.0.2.100:8080 your-api-key \
 | Layer | Technology |
 |-------|-----------|
 | UI Framework | Jetpack Compose (Material 3) |
-| Language | Kotlin 1.9.20 |
-| Build System | Gradle 9.0-milestone-1 with Kotlin DSL |
+| Language | Kotlin 2.2.10 |
+| Build System | Gradle 9.4.1 + AGP 9.2.0 (Kotlin DSL) |
 | HTTP Server | Ktor 2.3.7 (Netty engine) |
 | Serialization | kotlinx-serialization-json 1.6.0 |
 | Target SDK | 34 (Android 14) |
 | Min SDK | 26 (Android 8.0) |
+| Build JDK | 21 |
 
 ### Project Structure
 
@@ -374,6 +380,21 @@ app/src/main/java/com/pocketmcp/
 3. Register the tool in `McpServer.init { registry.register(YourTool()) }`.
 4. Add it to `ToolsScreen.kt` for UI visibility.
 
+### Testing
+
+```bash
+# Unit tests (JVM, no device required)
+./gradlew testDebugUnitTest
+
+# Debug build
+./gradlew assembleDebug
+```
+
+Unit tests live in `app/src/test/java/` and cover the API-key guard and throttling,
+JSON-RPC encoding, tool result helpers, the shell safety filter, and the agent
+NLU/planning layer. CI (`.github/workflows/ci.yml`) runs the build and the full test
+suite on every push and pull request.
+
 ## Permissions
 
 Some tools require Android special permissions or services:
@@ -386,7 +407,9 @@ Some tools require Android special permissions or services:
 
 ## Security Model
 
-- API key authentication through `X-API-Key` (recommended)
+- API key authentication on all endpoints (via `X-API-Key`, `Authorization: Bearer`, or `?key=` for WebSocket/SSE handshakes)
+- Encrypted API-key storage (Android Keystore-backed `EncryptedSharedPreferences`)
+- Brute-force throttling per client host
 - Local network first; remote access via private networks like Tailscale
 - Shell command restrictions with timeout/output limits
 - File-read path restrictions
@@ -402,9 +425,9 @@ Some tools require Android special permissions or services:
 
 - Camera capture tools
 - More accessibility-driven automations
-- WebSocket support
-- One-tap pairing workflow
+- One-tap pairing workflow (QR codes)
 - Voice-first command flows
+- Release signing and Play Store readiness
 
 ## License
 
