@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import com.pocketmcp.accessibility.PhoneAccessibilityService
+import com.pocketmcp.security.SecurePrefs
 import com.pocketmcp.service.McpServerService
 import com.pocketmcp.tools.NotificationListenerService
 import com.pocketmcp.ui.components.AnimatedBackground
@@ -26,9 +27,10 @@ import com.pocketmcp.ui.components.AnimatedBottomNav
 import com.pocketmcp.ui.components.NavPage
 import com.pocketmcp.ui.screens.*
 import com.pocketmcp.ui.theme.PocketMCPTheme
+import com.pocketmcp.util.ApiKeyGenerator
+import com.pocketmcp.util.McpConfigBuilder
 import kotlinx.coroutines.launch
 import java.net.NetworkInterface
-import java.security.SecureRandom
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
@@ -224,7 +226,7 @@ public class MainActivity : ComponentActivity() {
                                     refreshPermissionStates()
                                 },
                                 onGenerateKey = {
-                                    apiKeyText = generateApiKey()
+                                    apiKeyText = ApiKeyGenerator.generate()
                                     saveSettings()
                                     renderConnectionInfo()
                                     refreshPermissionStates()
@@ -280,7 +282,7 @@ public class MainActivity : ComponentActivity() {
                                 onToggleApiAuth = { enabled ->
                                     if (enabled) {
                                         if (apiKeyText.isBlank()) {
-                                            apiKeyText = generateApiKey()
+                                            apiKeyText = ApiKeyGenerator.generate()
                                             showSnackbar(getString(R.string.api_key_generated))
                                         }
                                         addRuntimeLog("API key auth enabled", LogLevel.INFO)
@@ -341,7 +343,7 @@ public class MainActivity : ComponentActivity() {
                                 },
                                 onManageKeys = {
                                     val key = if (apiKeyText.isNotBlank()) apiKeyText else {
-                                        apiKeyText = generateApiKey()
+                                        apiKeyText = ApiKeyGenerator.generate()
                                         saveSettings()
                                         renderConnectionInfo()
                                         refreshPermissionStates()
@@ -427,7 +429,7 @@ public class MainActivity : ComponentActivity() {
         val port = portText.toIntOrNull() ?: 8080
         ipAddress = resolveIpAddress()
         endpoint = "http://$ipAddress:$port/mcp"
-        mcpConfigText = buildMcpConfig(endpoint, apiKeyText)
+        mcpConfigText = McpConfigBuilder.build(endpoint, apiKeyText)
         isSecured = apiKeyText.isNotBlank()
     }
 
@@ -435,11 +437,17 @@ public class MainActivity : ComponentActivity() {
         val savedPort = preferences.getInt(PREF_PORT, 8080)
         portText = savedPort.toString()
 
-        if (preferences.contains(PREF_API_KEY)) {
-            apiKeyText = preferences.getString(PREF_API_KEY, "") ?: ""
-        } else {
-            apiKeyText = generateApiKey()
-            saveSettings()
+        val encryptedKey = SecurePrefs.getApiKey(this)
+        val legacyKey = preferences.getString(PREF_API_KEY, null)?.takeIf { it.isNotBlank() }
+        apiKeyText = when {
+            !encryptedKey.isNullOrBlank() -> encryptedKey
+            legacyKey != null -> {
+                preferences.edit().remove(PREF_API_KEY).apply()
+                SecurePrefs.setApiKey(this, legacyKey)
+                addRuntimeLog("Migrated API key to encrypted storage", LogLevel.INFO)
+                legacyKey
+            }
+            else -> ApiKeyGenerator.generate().also { SecurePrefs.setApiKey(this, it) }
         }
     }
 
@@ -463,10 +471,12 @@ public class MainActivity : ComponentActivity() {
 
     private fun saveSettings() {
         val port = portText.toIntOrNull() ?: 8080
-        preferences.edit()
-            .putInt(PREF_PORT, port)
-            .putString(PREF_API_KEY, apiKeyText)
-            .apply()
+        preferences.edit().putInt(PREF_PORT, port).apply()
+        if (apiKeyText.isBlank()) {
+            SecurePrefs.clearApiKey(this)
+        } else {
+            SecurePrefs.setApiKey(this, apiKeyText)
+        }
     }
 
     private fun requestMediaPermissionIfMissing() {
@@ -517,52 +527,6 @@ public class MainActivity : ComponentActivity() {
             logEvents.removeAt(0)
         }
         logEvents.add(LogEvent(timestamp, message, level))
-    }
-
-    private fun generateApiKey(length: Int = 32): String {
-        val alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-        val random = SecureRandom()
-        return buildString(length) {
-            repeat(length) { append(alphabet[random.nextInt(alphabet.length)]) }
-        }
-    }
-
-    private fun buildMcpConfig(endpoint: String, apiKey: String): String {
-        val escapedApiKey = apiKey.replace("\"", "\\\"")
-        val headersBlock = if (apiKey.isBlank()) {
-            ""
-        } else {
-            """
-        "headers": {
-          "X-API-Key": "$escapedApiKey"
-        }
-""".trimIndent()
-        }
-
-        return if (headersBlock.isBlank()) {
-            """
-{
-  "mcpServers": {
-    "phone": {
-      "type": "streamableHttp",
-      "url": "$endpoint"
-    }
-  }
-}
-""".trimIndent()
-        } else {
-            """
-{
-  "mcpServers": {
-    "phone": {
-      "type": "streamableHttp",
-      "url": "$endpoint",
-$headersBlock
-    }
-  }
-}
-""".trimIndent()
-        }
     }
 
     private fun copyToClipboard(label: String, text: String) {

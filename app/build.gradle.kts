@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -22,8 +24,8 @@ android {
         applicationId = "com.pocketmcp"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.0.0-beta.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -38,20 +40,25 @@ android {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
     }
-    kotlinOptions {
-        jvmTarget = "1.8"
-    }
     buildFeatures {
         viewBinding = true
         compose = true
+        buildConfig = true
     }
     packaging {
         resources.excludes.add("META-INF/INDEX.LIST")
         resources.excludes.add("META-INF/io.netty.versions.properties")
     }
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
 }
 
-
+kotlin {
+    compilerOptions {
+        jvmTarget = JvmTarget.JVM_1_8
+    }
+}
 
 dependencies {
     implementation("androidx.core:core-ktx:1.12.0")
@@ -98,6 +105,9 @@ dependencies {
 
     // QR Code generation
     implementation("com.google.zxing:core:3.5.3")
+
+    // Encrypted local storage for the API key (Android Keystore-backed)
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")

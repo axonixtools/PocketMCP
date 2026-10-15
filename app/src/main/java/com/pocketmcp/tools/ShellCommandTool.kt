@@ -40,7 +40,7 @@ class ShellCommandTool : McpToolHandler {
         if (command.length > 500) {
             return resultError("Command too long. Maximum length is 500 characters.")
         }
-        if (isBlocked(command)) {
+        if (isBlockedShellCommand(command)) {
             return resultError("Blocked command for safety.")
         }
 
@@ -102,24 +102,55 @@ class ShellCommandTool : McpToolHandler {
         return if (value.length <= MAX_OUTPUT_CHARS) value else value.take(MAX_OUTPUT_CHARS)
     }
 
-    private fun isBlocked(command: String): Boolean {
-        val normalized = command.lowercase()
-        if (normalized.contains('\n') || normalized.contains('\r')) {
-            return true
-        }
+}
 
-        val blockedFragments = listOf(
-            "rm -rf",
-            "mkfs",
-            "dd if=",
-            "reboot",
-            "shutdown",
-            "poweroff",
-            ":(){",
-            "setenforce 0",
-            "mount -o remount",
-            "pm uninstall"
-        )
-        return blockedFragments.any { fragment -> normalized.contains(fragment) }
+/**
+ * Best-effort safety filter for the shell tool.
+ *
+ * This is a speed bump, not a security boundary: commands run as the app user
+ * on a non-rooted device. The filter rejects obvious destructive operations
+ * before they are executed.
+ */
+internal fun isBlockedShellCommand(command: String): Boolean {
+    if (command.contains('\n') || command.contains('\r')) return true
+
+    val normalized = command.lowercase().replace(WHITESPACE, " ").trim()
+    if (BLOCKED_FRAGMENTS.any { fragment -> normalized.contains(fragment) }) return true
+    return isRecursiveForceDelete(normalized)
+}
+
+private val WHITESPACE = Regex("\\s+")
+
+private val BLOCKED_FRAGMENTS = listOf(
+    "rm -rf",
+    "rm -fr",
+    "mkfs",
+    "dd if=",
+    "reboot",
+    "shutdown",
+    "poweroff",
+    "halt",
+    "fastboot",
+    ":(){",
+    "setenforce 0",
+    "mount -o remount",
+    "pm uninstall"
+)
+
+/**
+ * Detects `rm` invocations that combine recursive and force flags regardless
+ * of flag order, spacing (`rm -rf`, `rm -fr`, `rm -r -f`, `rm -f -r`).
+ */
+private fun isRecursiveForceDelete(normalized: String): Boolean {
+    val tokens = normalized.split(' ')
+    val rmIndex = tokens.indexOf("rm")
+    if (rmIndex == -1) return false
+
+    var recursive = false
+    var force = false
+    for (token in tokens.drop(rmIndex + 1).takeWhile { it.startsWith("-") }) {
+        if ('r' in token) recursive = true
+        if ('f' in token) force = true
     }
+    return recursive && force
 }

@@ -2,6 +2,7 @@ package com.pocketmcp.server
 
 import android.content.Context
 import android.util.Log
+import com.pocketmcp.BuildConfig
 import com.pocketmcp.tools.CallTool
 import com.pocketmcp.tools.ContactsSearchTool
 import com.pocketmcp.tools.DeviceInfoTool
@@ -44,6 +45,7 @@ import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.plugins.cors.routing.*
+import io.ktor.server.plugins.origin
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -67,7 +69,7 @@ import java.util.concurrent.atomic.AtomicLong
 
 private const val TAG = "PocketMCP"
 private const val MCP_PROTOCOL_VERSION = "2024-11-05"
-private const val SERVER_VERSION = "0.2.6"
+private val SERVER_VERSION: String = BuildConfig.VERSION_NAME
 
 public class McpServer(
     private val context: Context,
@@ -80,6 +82,7 @@ public class McpServer(
     private val registry = McpToolRegistry()
     private val sseClients = CopyOnWriteArrayList<suspend (String) -> Unit>()
     private val json = Json { ignoreUnknownKeys = true; prettyPrint = false }
+    private val apiKeyGuard = ApiKeyGuard(apiKey)
 
     // Telemetry
     private val _requestCount = AtomicInteger(0)
@@ -166,24 +169,34 @@ public class McpServer(
 
             routing {
                 intercept(ApplicationCallPipeline.Plugins) {
-                    if (!apiKey.isNullOrBlank()) {
-                        val path = call.request.path()
-                        val isSseStream = call.request.httpMethod == HttpMethod.Get &&
-                            (path == "/mcp" || path == "/sse" || path == "/ws")
-                        if (path != "/" && path != "/health" && !isSseStream) {
-                            val provided = call.request.header("X-API-Key")
-                                ?: call.request.header(HttpHeaders.Authorization)?.removePrefix("Bearer ")
-                            if (provided != apiKey) {
-                                call.respondText(
-                                    "{\"error\":\"Invalid API key\"}",
-                                    ContentType.Application.Json,
-                                    HttpStatusCode.Unauthorized
-                                )
-                                finish()
-                                return@intercept
-                            }
-                        }
+                    if (!apiKeyGuard.enabled) return@intercept
+
+                    val path = call.request.path()
+                    if (path == "/" || path == "/health") return@intercept
+
+                    val host = call.request.origin.remoteHost
+                    if (apiKeyGuard.isThrottled(host)) {
+                        call.respondText(
+                            "{\"error\":\"Too many failed API key attempts\"}",
+                            ContentType.Application.Json,
+                            HttpStatusCode.TooManyRequests
+                        )
+                        finish()
+                        return@intercept
                     }
+
+                    if (!apiKeyGuard.authorize(providedApiKey(call))) {
+                        apiKeyGuard.recordFailure(host)
+                        call.respondText(
+                            "{\"error\":\"Invalid API key\"}",
+                            ContentType.Application.Json,
+                            HttpStatusCode.Unauthorized
+                        )
+                        finish()
+                        return@intercept
+                    }
+
+                    apiKeyGuard.recordSuccess(host)
                 }
 
                 get("/") {
@@ -271,7 +284,7 @@ public class McpServer(
                                     json.decodeFromString<JsonRpcRequest>(body)
                                 } catch (e: Exception) {
                                     val error = JsonRpcResponse(
-                                        error = JsonRpcError(McpErrorCodes.PARSE_ERROR, "Parse error: \${e.message}")
+                                        error = JsonRpcError(McpErrorCodes.PARSE_ERROR, "Parse error: ${e.message}")
                                     )
                                     val responseJson = encodeJsonRpcResponse(error)
                                     Log.d(TAG, "WS MCP response (parse error): $responseJson")
@@ -337,6 +350,13 @@ public class McpServer(
         sseClients.clear()
         _startTime.set(0)
         Log.i(TAG, "MCP server stopped")
+    }
+
+    private fun providedApiKey(call: ApplicationCall): String? {
+        return call.request.header("X-API-Key")
+            ?: call.request.header(HttpHeaders.Authorization)?.removePrefix("Bearer ")?.trim()
+            ?: call.request.queryParameters["key"]
+            ?: call.request.queryParameters["api_key"]
     }
 
     private suspend fun handleRequest(request: JsonRpcRequest): JsonRpcResponse {
@@ -462,17 +482,5 @@ public class McpServer(
 
     public suspend fun broadcast(message: String): Unit {
         sseClients.forEach { it(message) }
-    }
-
-    private fun encodeJsonRpcResponse(response: JsonRpcResponse): String {
-        val payload = buildJsonObject {
-            put("jsonrpc", JsonPrimitive("2.0"))
-            response.result?.let { put("result", it) }
-            response.error?.let {
-                put("error", json.encodeToJsonElement(JsonRpcError.serializer(), it))
-            }
-            response.id?.let { put("id", it) }
-        }
-        return payload.toString()
     }
 }

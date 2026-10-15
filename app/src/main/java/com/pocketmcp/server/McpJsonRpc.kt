@@ -1,8 +1,13 @@
 package com.pocketmcp.server
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.put
 
 @Serializable
 public data class JsonRpcRequest(
@@ -79,3 +84,21 @@ public data class McpContent(
     public val text: String? = null,
     public val source: String? = null
 )
+
+private val jsonRpcEncoder = Json { ignoreUnknownKeys = true; prettyPrint = false }
+
+/**
+ * Encodes a [JsonRpcResponse] into the wire format used by every transport
+ * (HTTP POST, SSE, WebSocket). Absent fields are omitted entirely.
+ */
+internal fun encodeJsonRpcResponse(response: JsonRpcResponse): String {
+    val payload = buildJsonObject {
+        put("jsonrpc", JsonPrimitive("2.0"))
+        response.result?.let { put("result", it) }
+        response.error?.let {
+            put("error", jsonRpcEncoder.encodeToJsonElement(JsonRpcError.serializer(), it))
+        }
+        response.id?.let { put("id", it) }
+    }
+    return payload.toString()
+}
