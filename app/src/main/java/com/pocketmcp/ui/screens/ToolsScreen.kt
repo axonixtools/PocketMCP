@@ -1,27 +1,82 @@
 package com.pocketmcp.ui.screens
 
-import androidx.compose.animation.ExperimentalAnimationApi
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.rounded.Chat
+import androidx.compose.material.icons.automirrored.rounded.InsertDriveFile
+import androidx.compose.material.icons.automirrored.rounded.Launch
+import androidx.compose.material.icons.automirrored.rounded.Message
+import androidx.compose.material.icons.automirrored.rounded.Rule
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
+import androidx.compose.material.icons.rounded.Apps
+import androidx.compose.material.icons.rounded.AudioFile
+import androidx.compose.material.icons.rounded.AutoFixHigh
+import androidx.compose.material.icons.rounded.Business
+import androidx.compose.material.icons.rounded.Call
+import androidx.compose.material.icons.rounded.Contacts
+import androidx.compose.material.icons.rounded.CropFree
+import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.FlashlightOn
+import androidx.compose.material.icons.rounded.Gesture
+import androidx.compose.material.icons.rounded.Http
+import androidx.compose.material.icons.rounded.LocationOn
+import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material.icons.rounded.NotificationAdd
+import androidx.compose.material.icons.rounded.NotificationImportant
+import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.NotificationsActive
+import androidx.compose.material.icons.rounded.PhoneAndroid
+import androidx.compose.material.icons.rounded.Psychology
+import androidx.compose.material.icons.rounded.ScreenSearchDesktop
+import androidx.compose.material.icons.rounded.Screenshot
+import androidx.compose.material.icons.rounded.SearchOff
+import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material.icons.rounded.SmartToy
+import androidx.compose.material.icons.rounded.Swipe
+import androidx.compose.material.icons.rounded.Terminal
+import androidx.compose.material.icons.rounded.TouchApp
+import androidx.compose.material.icons.rounded.Translate
+import androidx.compose.material.icons.rounded.Voicemail
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.pocketmcp.ui.components.*
-import com.pocketmcp.ui.theme.*
+import com.pocketmcp.ui.components.AppSearchBar
+import com.pocketmcp.ui.components.FilterChipRow
+import com.pocketmcp.ui.components.GroupedCard
+import com.pocketmcp.ui.components.ListRow
+import com.pocketmcp.ui.components.RowIcon
+import com.pocketmcp.ui.components.sectionEntrance
+import com.pocketmcp.ui.theme.AppTheme
 
 enum class ToolCategory { ALL, SYSTEM, COMMUNICATION, SENSORS, MEDIA, AUTOMATION }
 
@@ -30,8 +85,7 @@ private data class ToolInfo(
     val description: String,
     val icon: ImageVector,
     val category: ToolCategory,
-    val status: ToolStatus,
-    val accentColor: Color
+    val status: ToolStatus
 )
 
 enum class ToolStatus {
@@ -69,39 +123,39 @@ fun ToolsScreen(
         cameraPermissionGranted
     ) {
         listOf(
-            ToolInfo("Device Info", "Battery, memory, model, OS version", Icons.Rounded.PhoneAndroid, ToolCategory.SYSTEM, ToolStatus.READY, NeuralPrimary),
-            ToolInfo("Shell", "Execute secure shell commands", Icons.Rounded.Terminal, ToolCategory.SYSTEM, ToolStatus.READY, NeuralPrimary),
-            ToolInfo("Launch App", "Open any installed application", Icons.Rounded.Launch, ToolCategory.SYSTEM, ToolStatus.READY, NeuralPrimary),
-            ToolInfo("List Apps", "Enumerate all installed packages", Icons.Rounded.Apps, ToolCategory.SYSTEM, ToolStatus.READY, NeuralPrimary),
-            ToolInfo("File Read", "Read files from allowed storage", Icons.Rounded.InsertDriveFile, ToolCategory.SYSTEM, statusFor(mediaAccessEnabled), NeuralPrimary),
-            ToolInfo("Send Message", "SMS text messaging", Icons.Rounded.Message, ToolCategory.COMMUNICATION, statusFor(smsPermissionGranted), NeuralSecondary),
-            ToolInfo("Make Call", "Initiate phone calls", Icons.Rounded.Call, ToolCategory.COMMUNICATION, statusFor(callPermissionGranted), NeuralSecondary),
-            ToolInfo("Search Contacts", "Query device contact list", Icons.Rounded.Contacts, ToolCategory.COMMUNICATION, statusFor(contactsPermissionGranted), NeuralSecondary),
-            ToolInfo("WhatsApp Send", "Send WhatsApp messages", Icons.Rounded.Chat, ToolCategory.COMMUNICATION, statusFor(accessibilityEnabled), NeuralSecondary),
-            ToolInfo("WhatsApp Business", "Send WhatsApp Business messages", Icons.Rounded.Business, ToolCategory.COMMUNICATION, statusFor(accessibilityEnabled), NeuralSecondary),
-            ToolInfo("WhatsApp Automation", "Advanced WhatsApp automation", Icons.Rounded.SmartToy, ToolCategory.COMMUNICATION, statusFor(accessibilityEnabled), NeuralSecondary),
-            ToolInfo("Social Media", "Instagram, YouTube, X/Twitter", Icons.Rounded.Share, ToolCategory.COMMUNICATION, statusFor(accessibilityEnabled), NeuralSecondary),
-            ToolInfo("Location", "GPS and network location", Icons.Rounded.LocationOn, ToolCategory.SENSORS, statusFor(locationPermissionGranted), NeuralTertiary),
-            ToolInfo("Flashlight", "Toggle camera LED", Icons.Rounded.FlashlightOn, ToolCategory.SENSORS, statusFor(cameraPermissionGranted), NeuralTertiary),
-            ToolInfo("Volume", "Control system audio levels", Icons.Rounded.VolumeUp, ToolCategory.SENSORS, ToolStatus.READY, NeuralTertiary),
-            ToolInfo("Screenshot", "Capture screen content", Icons.Rounded.Screenshot, ToolCategory.SENSORS, statusFor(accessibilityEnabled), NeuralTertiary),
-            ToolInfo("Phone Alert", "Ring and vibrate phone", Icons.Rounded.NotificationImportant, ToolCategory.SENSORS, ToolStatus.READY, NeuralTertiary),
-            ToolInfo("Voice Record", "Record audio from microphone", Icons.Rounded.Mic, ToolCategory.MEDIA, statusFor(recordAudioPermissionGranted), NeuralGlowGreen),
-            ToolInfo("Transcribe Audio", "Speech-to-text from mic", Icons.Rounded.Translate, ToolCategory.MEDIA, statusFor(recordAudioPermissionGranted), NeuralGlowGreen),
-            ToolInfo("Transcribe File", "Audio file transcription", Icons.Rounded.AudioFile, ToolCategory.MEDIA, statusFor(mediaAccessEnabled), NeuralGlowGreen),
-            ToolInfo("WhatsApp Audio", "Transcribe WhatsApp voice notes", Icons.Rounded.Voicemail, ToolCategory.MEDIA, statusFor(mediaAccessEnabled), NeuralGlowGreen),
-            ToolInfo("HTTP Request", "Proxy network requests", Icons.Rounded.Http, ToolCategory.SYSTEM, ToolStatus.READY, NeuralPrimary),
-            ToolInfo("Scroll Screen", "Automated UI scrolling", Icons.Rounded.Swipe, ToolCategory.AUTOMATION, statusFor(accessibilityEnabled), NeuralWarning),
-            ToolInfo("Tap", "Programmatic screen taps", Icons.Rounded.TouchApp, ToolCategory.AUTOMATION, statusFor(accessibilityEnabled), NeuralWarning),
-            ToolInfo("Search Screen", "Find and type in search fields", Icons.Rounded.ScreenSearchDesktop, ToolCategory.AUTOMATION, statusFor(accessibilityEnabled), NeuralWarning),
-            ToolInfo("Screen State", "Capture accessibility tree", Icons.Rounded.CropFree, ToolCategory.AUTOMATION, statusFor(accessibilityEnabled), NeuralWarning),
-            ToolInfo("Notifications", "Read active notifications", Icons.Rounded.Notifications, ToolCategory.SYSTEM, statusFor(notificationAccessEnabled), NeuralPrimary),
-            ToolInfo("Smart Notifications", "Advanced notification management", Icons.Rounded.NotificationsActive, ToolCategory.SYSTEM, statusFor(notificationAccessEnabled), NeuralPrimary),
-            ToolInfo("Notification Diagnostic", "Notification service diagnostics", Icons.Rounded.NotificationAdd, ToolCategory.SYSTEM, statusFor(notificationAccessEnabled), NeuralPrimary),
-            ToolInfo("Global Action", "Home, back, recents, lock", Icons.Rounded.Gesture, ToolCategory.AUTOMATION, statusFor(accessibilityEnabled), NeuralWarning),
-            ToolInfo("Workflow", "Multi-step automation chains", Icons.Rounded.AutoFixHigh, ToolCategory.AUTOMATION, statusFor(accessibilityEnabled), NeuralWarning),
-            ToolInfo("App Actions", "Run preset app actions", Icons.Rounded.Rule, ToolCategory.AUTOMATION, statusFor(accessibilityEnabled), NeuralWarning),
-            ToolInfo("Human Command", "Natural language command router", Icons.Rounded.Psychology, ToolCategory.AUTOMATION, statusFor(accessibilityEnabled), NeuralWarning)
+            ToolInfo("Device Info", "Battery, memory, model, OS version", Icons.Rounded.PhoneAndroid, ToolCategory.SYSTEM, ToolStatus.READY),
+            ToolInfo("Shell", "Execute secure shell commands", Icons.Rounded.Terminal, ToolCategory.SYSTEM, ToolStatus.READY),
+            ToolInfo("Launch App", "Open any installed application", Icons.AutoMirrored.Rounded.Launch, ToolCategory.SYSTEM, ToolStatus.READY),
+            ToolInfo("List Apps", "Enumerate all installed packages", Icons.Rounded.Apps, ToolCategory.SYSTEM, ToolStatus.READY),
+            ToolInfo("File Read", "Read files from allowed storage", Icons.AutoMirrored.Rounded.InsertDriveFile, ToolCategory.SYSTEM, statusFor(mediaAccessEnabled)),
+            ToolInfo("Send Message", "SMS text messaging", Icons.AutoMirrored.Rounded.Message, ToolCategory.COMMUNICATION, statusFor(smsPermissionGranted)),
+            ToolInfo("Make Call", "Initiate phone calls", Icons.Rounded.Call, ToolCategory.COMMUNICATION, statusFor(callPermissionGranted)),
+            ToolInfo("Search Contacts", "Query device contact list", Icons.Rounded.Contacts, ToolCategory.COMMUNICATION, statusFor(contactsPermissionGranted)),
+            ToolInfo("WhatsApp Send", "Send WhatsApp messages", Icons.AutoMirrored.Rounded.Chat, ToolCategory.COMMUNICATION, statusFor(accessibilityEnabled)),
+            ToolInfo("WhatsApp Business", "Send WhatsApp Business messages", Icons.Rounded.Business, ToolCategory.COMMUNICATION, statusFor(accessibilityEnabled)),
+            ToolInfo("WhatsApp Automation", "Advanced WhatsApp automation", Icons.Rounded.SmartToy, ToolCategory.COMMUNICATION, statusFor(accessibilityEnabled)),
+            ToolInfo("Social Media", "Instagram, YouTube, X/Twitter", Icons.Rounded.Share, ToolCategory.COMMUNICATION, statusFor(accessibilityEnabled)),
+            ToolInfo("Location", "GPS and network location", Icons.Rounded.LocationOn, ToolCategory.SENSORS, statusFor(locationPermissionGranted)),
+            ToolInfo("Flashlight", "Toggle camera LED", Icons.Rounded.FlashlightOn, ToolCategory.SENSORS, statusFor(cameraPermissionGranted)),
+            ToolInfo("Volume", "Control system audio levels", Icons.AutoMirrored.Rounded.VolumeUp, ToolCategory.SENSORS, ToolStatus.READY),
+            ToolInfo("Screenshot", "Capture screen content", Icons.Rounded.Screenshot, ToolCategory.SENSORS, statusFor(accessibilityEnabled)),
+            ToolInfo("Phone Alert", "Ring and vibrate phone", Icons.Rounded.NotificationImportant, ToolCategory.SENSORS, ToolStatus.READY),
+            ToolInfo("Voice Record", "Record audio from microphone", Icons.Rounded.Mic, ToolCategory.MEDIA, statusFor(recordAudioPermissionGranted)),
+            ToolInfo("Transcribe Audio", "Speech-to-text from mic", Icons.Rounded.Translate, ToolCategory.MEDIA, statusFor(recordAudioPermissionGranted)),
+            ToolInfo("Transcribe File", "Audio file transcription", Icons.Rounded.AudioFile, ToolCategory.MEDIA, statusFor(mediaAccessEnabled)),
+            ToolInfo("WhatsApp Audio", "Transcribe WhatsApp voice notes", Icons.Rounded.Voicemail, ToolCategory.MEDIA, statusFor(mediaAccessEnabled)),
+            ToolInfo("HTTP Request", "Proxy network requests", Icons.Rounded.Http, ToolCategory.SYSTEM, ToolStatus.READY),
+            ToolInfo("Scroll Screen", "Automated UI scrolling", Icons.Rounded.Swipe, ToolCategory.AUTOMATION, statusFor(accessibilityEnabled)),
+            ToolInfo("Tap", "Programmatic screen taps", Icons.Rounded.TouchApp, ToolCategory.AUTOMATION, statusFor(accessibilityEnabled)),
+            ToolInfo("Search Screen", "Find and type in search fields", Icons.Rounded.ScreenSearchDesktop, ToolCategory.AUTOMATION, statusFor(accessibilityEnabled)),
+            ToolInfo("Screen State", "Capture accessibility tree", Icons.Rounded.CropFree, ToolCategory.AUTOMATION, statusFor(accessibilityEnabled)),
+            ToolInfo("Notifications", "Read active notifications", Icons.Rounded.Notifications, ToolCategory.SYSTEM, statusFor(notificationAccessEnabled)),
+            ToolInfo("Smart Notifications", "Advanced notification management", Icons.Rounded.NotificationsActive, ToolCategory.SYSTEM, statusFor(notificationAccessEnabled)),
+            ToolInfo("Notification Diagnostic", "Notification service diagnostics", Icons.Rounded.NotificationAdd, ToolCategory.SYSTEM, statusFor(notificationAccessEnabled)),
+            ToolInfo("Global Action", "Home, back, recents, lock", Icons.Rounded.Gesture, ToolCategory.AUTOMATION, statusFor(accessibilityEnabled)),
+            ToolInfo("Workflow", "Multi-step automation chains", Icons.Rounded.AutoFixHigh, ToolCategory.AUTOMATION, statusFor(accessibilityEnabled)),
+            ToolInfo("App Actions", "Run preset app actions", Icons.AutoMirrored.Rounded.Rule, ToolCategory.AUTOMATION, statusFor(accessibilityEnabled)),
+            ToolInfo("Human Command", "Natural language command router", Icons.Rounded.Psychology, ToolCategory.AUTOMATION, statusFor(accessibilityEnabled))
         )
     }
 
@@ -113,117 +167,60 @@ fun ToolsScreen(
         categoryMatches && searchMatches
     }
 
+    val permissionNeededCount = tools.count { it.status == ToolStatus.PERMISSION_REQUIRED }
+    val isFiltering = searchQuery.isNotBlank() || selectedCategory != ToolCategory.ALL
+
     Column(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
-            .padding(horizontal = 20.dp)
-            .padding(top = 24.dp, bottom = 100.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+            .padding(horizontal = 16.dp)
+            .padding(top = 12.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        // Header
-        Column {
+        Column(modifier = Modifier.sectionEntrance(0)) {
             Text(
-                text = "Tool Library",
-                style = MaterialTheme.typography.headlineMedium,
-                color = NeuralOnBackground
+                text = "Tools",
+                style = MaterialTheme.typography.headlineLarge,
+                color = MaterialTheme.colorScheme.onBackground
             )
             Text(
-                text = "${tools.size} tools available",
-                style = MaterialTheme.typography.bodyMedium,
-                color = NeuralOnSurfaceVariant
+                text = if (isFiltering) {
+                    "${filteredTools.size} of ${tools.size} tools"
+                } else {
+                    "${tools.size} tools available"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = AppTheme.colors.secondaryLabel
             )
         }
 
-        // Search
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = { searchQuery = it },
-            placeholder = { Text("Search tools...") },
-            leadingIcon = {
-                Icon(Icons.Rounded.Search, null, tint = NeuralOnSurfaceMuted)
-            },
-            trailingIcon = {
-                if (searchQuery.isNotEmpty()) {
-                    IconButton(onClick = { searchQuery = "" }) {
-                        Icon(Icons.Rounded.Close, null, tint = NeuralOnSurfaceMuted)
-                    }
-                }
-            },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = NeuralPrimary.copy(alpha = 0.6f),
-                unfocusedBorderColor = NeuralOutline,
-                focusedLabelColor = NeuralPrimary,
-                unfocusedLabelColor = NeuralOnSurfaceMuted,
-                focusedTextColor = NeuralOnSurface,
-                unfocusedTextColor = NeuralOnSurface,
-                focusedContainerColor = NeuralSurfaceHighlight.copy(alpha = 0.5f),
-                unfocusedContainerColor = NeuralSurfaceHighlight.copy(alpha = 0.3f)
-            )
-        )
-
-        // Category chips
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        Column(
+            modifier = Modifier.sectionEntrance(1),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            ToolCategoryChip(
-                label = "All",
-                isSelected = selectedCategory == ToolCategory.ALL,
-                color = NeuralPrimary,
-                onClick = { selectedCategory = ToolCategory.ALL }
+            AppSearchBar(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = "Search tools"
             )
-            ToolCategoryChip(
-                label = "System",
-                isSelected = selectedCategory == ToolCategory.SYSTEM,
-                color = NeuralPrimary,
-                onClick = { selectedCategory = ToolCategory.SYSTEM }
-            )
-            ToolCategoryChip(
-                label = "Comm",
-                isSelected = selectedCategory == ToolCategory.COMMUNICATION,
-                color = NeuralSecondary,
-                onClick = { selectedCategory = ToolCategory.COMMUNICATION }
-            )
-            ToolCategoryChip(
-                label = "Sensors",
-                isSelected = selectedCategory == ToolCategory.SENSORS,
-                color = NeuralTertiary,
-                onClick = { selectedCategory = ToolCategory.SENSORS }
-            )
-            ToolCategoryChip(
-                label = "Media",
-                isSelected = selectedCategory == ToolCategory.MEDIA,
-                color = NeuralGlowGreen,
-                onClick = { selectedCategory = ToolCategory.MEDIA }
+
+            FilterChipRow(
+                labels = listOf("All", "System", "Comm", "Sensors", "Media", "Auto"),
+                selectedIndex = selectedCategory.ordinal,
+                onSelect = { index -> selectedCategory = ToolCategory.entries[index] }
             )
         }
 
-        // Tools grid
-        AnimatedContent(
-            targetState = filteredTools,
-            transitionSpec = {
-                fadeIn(tween(300)) togetherWith fadeOut(tween(200))
-            },
-            label = "tools"
-        ) { list ->
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                list.forEach { tool ->
-                    ToolCard(
-                        tool = tool,
-                        modifier = Modifier
-                    )
-                }
-            }
+        if (permissionNeededCount > 0 && !isFiltering) {
+            PermissionBanner(count = permissionNeededCount)
         }
 
         if (filteredTools.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .sectionEntrance(3)
                     .padding(vertical = 48.dp),
                 contentAlignment = Alignment.Center
             ) {
@@ -231,15 +228,32 @@ fun ToolsScreen(
                     Icon(
                         imageVector = Icons.Rounded.SearchOff,
                         contentDescription = null,
-                        tint = NeuralOnSurfaceMuted,
-                        modifier = Modifier.size(48.dp)
+                        tint = AppTheme.colors.tertiaryLabel,
+                        modifier = Modifier.size(44.dp)
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
                         text = "No tools match your search",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = NeuralOnSurfaceMuted
+                        color = AppTheme.colors.secondaryLabel
                     )
+                }
+            }
+        } else {
+            AnimatedContent(
+                targetState = filteredTools,
+                transitionSpec = {
+                    fadeIn(tween(200)) togetherWith fadeOut(tween(120))
+                },
+                label = "filteredTools"
+            ) { visibleTools ->
+                GroupedCard(modifier = Modifier.sectionEntrance(3)) {
+                    visibleTools.forEachIndexed { index, tool ->
+                        ToolRow(
+                            tool = tool,
+                            showDivider = index != visibleTools.lastIndex
+                        )
+                    }
                 }
             }
         }
@@ -247,109 +261,73 @@ fun ToolsScreen(
 }
 
 @Composable
-private fun ToolCategoryChip(
-    label: String,
-    isSelected: Boolean,
-    color: Color,
-    onClick: () -> Unit
-) {
-    val backgroundColor by animateColorAsState(
-        targetValue = if (isSelected) color.copy(alpha = 0.15f) else NeuralSurfaceVariant.copy(alpha = 0.4f),
-        animationSpec = tween(200),
-        label = "toolChipBg"
-    )
-    val borderColor by animateColorAsState(
-        targetValue = if (isSelected) color.copy(alpha = 0.5f) else NeuralOutline,
-        animationSpec = tween(200),
-        label = "toolChipBorder"
-    )
-
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(10.dp),
-        color = backgroundColor,
-        border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
+private fun PermissionBanner(count: Int) {
+    val colors = AppTheme.colors
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .sectionEntrance(2)
+            .clip(RoundedCornerShape(12.dp))
+            .background(colors.warning.copy(alpha = 0.12f))
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            color = if (isSelected) color else NeuralOnSurfaceMuted,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+        Icon(
+            imageVector = Icons.Rounded.ErrorOutline,
+            contentDescription = null,
+            tint = colors.warning,
+            modifier = Modifier.size(20.dp)
         )
+        Spacer(Modifier.width(10.dp))
+        Column {
+            Text(
+                text = "Permissions needed",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Text(
+                text = "$count tools require setup to work",
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.secondaryLabel
+            )
+        }
     }
 }
 
 @Composable
-private fun ToolCard(tool: ToolInfo, modifier: Modifier = Modifier) {
+private fun ToolRow(
+    tool: ToolInfo,
+    showDivider: Boolean
+) {
+    val colors = AppTheme.colors
     val statusColor = when (tool.status) {
-        ToolStatus.READY -> NeuralSuccess
-        ToolStatus.PERMISSION_REQUIRED -> NeuralWarning
-        ToolStatus.UNAVAILABLE -> NeuralError
+        ToolStatus.READY -> colors.success
+        ToolStatus.PERMISSION_REQUIRED -> colors.warning
+        ToolStatus.UNAVAILABLE -> MaterialTheme.colorScheme.error
     }
-
     val statusLabel = when (tool.status) {
-        ToolStatus.READY -> "READY"
-        ToolStatus.PERMISSION_REQUIRED -> "PERMISSION REQUIRED"
-        ToolStatus.UNAVAILABLE -> "UNAVAILABLE"
+        ToolStatus.READY -> null
+        ToolStatus.PERMISSION_REQUIRED -> "Setup"
+        ToolStatus.UNAVAILABLE -> "Unavailable"
     }
 
-    GlassCard(
-        modifier = modifier.fillMaxWidth(),
-        active = tool.status == ToolStatus.READY,
-        glowColor = tool.accentColor,
-        cornerRadius = 16.dp,
-        contentPadding = PaddingValues(16.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Icon container
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .background(tool.accentColor.copy(alpha = 0.12f), RoundedCornerShape(12.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = tool.icon,
-                    contentDescription = null,
-                    tint = tool.accentColor,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(
-                    text = tool.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = NeuralOnBackground,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = tool.description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = NeuralOnSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            // Status badge
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = statusColor.copy(alpha = 0.12f),
-                border = androidx.compose.foundation.BorderStroke(1.dp, statusColor.copy(alpha = 0.3f))
-            ) {
+    ListRow(
+        leading = { RowIcon(tool.icon) },
+        title = tool.name,
+        subtitle = tool.description,
+        trailing = if (statusLabel != null) {
+            {
                 Text(
                     text = statusLabel,
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Medium,
                     color = statusColor,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                    maxLines = 1
                 )
             }
-        }
-    }
+        } else {
+            null
+        },
+        showDivider = showDivider
+    )
 }

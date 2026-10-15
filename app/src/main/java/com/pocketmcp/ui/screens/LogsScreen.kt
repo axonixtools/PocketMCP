@@ -1,29 +1,48 @@
 package com.pocketmcp.ui.screens
 
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pocketmcp.MainActivity
-import com.pocketmcp.ui.components.*
-import com.pocketmcp.ui.theme.*
+import com.pocketmcp.ui.components.CodeBlock
+import com.pocketmcp.ui.components.GroupedCard
+import com.pocketmcp.ui.components.GroupedSection
+import com.pocketmcp.ui.components.HairlineDivider
+import com.pocketmcp.ui.components.ListRow
+import com.pocketmcp.ui.components.RowChevron
+import com.pocketmcp.ui.components.SegmentedControl
+import com.pocketmcp.ui.components.sectionEntrance
+import com.pocketmcp.ui.theme.AppTheme
 
 enum class LogFilter { ALL, ERRORS, TOOLS, REQUESTS }
 
@@ -54,250 +73,159 @@ fun LogsScreen(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
-            .padding(horizontal = 20.dp)
-            .padding(top = 24.dp, bottom = 100.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+            .padding(horizontal = 16.dp)
+            .padding(top = 12.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .sectionEntrance(0),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = "Logs",
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    text = "${logEvents.size} events",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = AppTheme.colors.secondaryLabel
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .clickable { onClearLogs() }
+                    .defaultMinSize(minHeight = 44.dp)
+                    .padding(horizontal = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Clear",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+        }
+
+        GroupedSection(title = "Runtime", modifier = Modifier.sectionEntrance(1)) {
+            GroupedCard {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp)
+                ) {
+                    CodeBlock(
+                        text = logEvents.takeLast(8).joinToString("\n") {
+                            "[${it.timestamp}] ${it.message}"
+                        }.ifBlank { "No events yet..." }
+                    )
+                }
+            }
+        }
+
+        SegmentedControl(
+            labels = listOf("All", "Errors", "Tools", "Requests"),
+            selectedIndex = selectedFilter.ordinal,
+            onSelect = { index -> selectedFilter = LogFilter.entries[index] },
+            modifier = Modifier.sectionEntrance(2)
+        )
+
+        GroupedSection(title = "Events", modifier = Modifier.sectionEntrance(3)) {
+            AnimatedContent(
+                targetState = filteredEvents,
+                transitionSpec = {
+                    fadeIn(tween(200)) togetherWith fadeOut(tween(120))
+                },
+                label = "filteredEvents"
+            ) { events ->
+                GroupedCard {
+                    if (events.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 28.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No events match this filter",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = AppTheme.colors.secondaryLabel
+                            )
+                        }
+                    } else {
+                        val shown = events.takeLast(50).reversed()
+                        shown.forEachIndexed { index, event ->
+                            LogEventRow(
+                                event = event,
+                                showDivider = index != shown.lastIndex
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        GroupedCard(modifier = Modifier.sectionEntrance(4)) {
+            ListRow(
+                title = "View All Notification History",
+                trailing = { RowChevron() },
+                onClick = onViewAllNotifications
+            )
+        }
+    }
+}
+
+@Composable
+private fun LogEventRow(
+    event: MainActivity.LogEvent,
+    showDivider: Boolean
+) {
+    val colors = AppTheme.colors
+    val levelColor = when (event.level) {
+        MainActivity.LogLevel.ERROR -> MaterialTheme.colorScheme.error
+        MainActivity.LogLevel.TOOL -> colors.success
+        MainActivity.LogLevel.REQUEST -> MaterialTheme.colorScheme.primary
+        MainActivity.LogLevel.INFO -> colors.secondaryLabel
+    }
+    val levelLabel = when (event.level) {
+        MainActivity.LogLevel.ERROR -> "ERROR"
+        MainActivity.LogLevel.TOOL -> "TOOL"
+        MainActivity.LogLevel.REQUEST -> "REQUEST"
+        MainActivity.LogLevel.INFO -> "INFO"
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
-                Text(
-                    text = "Server Logs",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = NeuralOnBackground
-                )
-                Text(
-                    text = "${logEvents.size} events",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = NeuralOnSurfaceVariant
-                )
-            }
-            IconButton(
-                onClick = onClearLogs,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(NeuralSurfaceVariant)
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.DeleteSweep,
-                    contentDescription = "Clear logs",
-                    tint = NeuralError
-                )
-            }
-        }
-
-        // Live terminal
-        GlassCard(
-            modifier = Modifier.fillMaxWidth(),
-            active = true,
-            glowColor = NeuralSecondary
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .background(NeuralSuccess, CircleShape)
-                    )
-                    Text(
-                        text = "Runtime Log",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = NeuralSecondary
-                    )
-                }
-
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = NeuralBackground.copy(alpha = 0.8f),
-                    border = BorderStroke(1.dp, NeuralOutline)
-                ) {
-                    Text(
-                        text = logEvents.takeLast(8).joinToString("\n") {
-                            "[${it.timestamp}] ${it.message}"
-                        }.ifBlank { "No events yet..." },
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontFamily = FontFamily.Monospace,
-                            lineHeight = 20.sp
-                        ),
-                        color = NeuralOnSurfaceVariant,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                    )
-                }
-            }
-        }
-
-        // Filter chips
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            LogFilterChip(
-                label = "All",
-                isSelected = selectedFilter == LogFilter.ALL,
-                color = NeuralPrimary,
-                onClick = { selectedFilter = LogFilter.ALL }
+            Text(
+                text = levelLabel,
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                color = levelColor
             )
-            LogFilterChip(
-                label = "Errors",
-                isSelected = selectedFilter == LogFilter.ERRORS,
-                color = NeuralError,
-                onClick = { selectedFilter = LogFilter.ERRORS }
-            )
-            LogFilterChip(
-                label = "Tools",
-                isSelected = selectedFilter == LogFilter.TOOLS,
-                color = NeuralSuccess,
-                onClick = { selectedFilter = LogFilter.TOOLS }
-            )
-            LogFilterChip(
-                label = "Requests",
-                isSelected = selectedFilter == LogFilter.REQUESTS,
-                color = NeuralSecondary,
-                onClick = { selectedFilter = LogFilter.REQUESTS }
+            Text(
+                text = event.timestamp,
+                style = MaterialTheme.typography.labelSmall,
+                color = colors.tertiaryLabel
             )
         }
-
-        // Event cards from real data
-        AnimatedContent(
-            targetState = filteredEvents,
-            transitionSpec = {
-                fadeIn(tween(300)) togetherWith fadeOut(tween(200))
-            },
-            label = "events"
-        ) { list ->
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (list.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "No events match this filter",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = NeuralOnSurfaceMuted
-                        )
-                    }
-                } else {
-                    list.takeLast(50).forEach { event ->
-                        LogEventCard(event = event)
-                    }
-                }
-            }
-        }
-
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(48.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .clickable { onViewAllNotifications() },
-            color = NeuralSurfaceVariant.copy(alpha = 0.5f),
-            border = BorderStroke(1.dp, NeuralOutline)
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Text(
-                    text = "View All Notification History",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = NeuralOnSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun LogFilterChip(
-    label: String,
-    isSelected: Boolean,
-    color: Color,
-    onClick: () -> Unit
-) {
-    val backgroundColor by animateColorAsState(
-        targetValue = if (isSelected) color.copy(alpha = 0.15f) else NeuralSurfaceVariant.copy(alpha = 0.4f),
-        animationSpec = tween(200),
-        label = "chipBg"
-    )
-    val borderColor by animateColorAsState(
-        targetValue = if (isSelected) color.copy(alpha = 0.5f) else NeuralOutline,
-        animationSpec = tween(200),
-        label = "chipBorder"
-    )
-
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(10.dp),
-        color = backgroundColor,
-        border = BorderStroke(1.dp, borderColor)
-    ) {
+        Spacer(Modifier.height(4.dp))
         Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            color = if (isSelected) color else NeuralOnSurfaceMuted,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+            text = event.message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onBackground
         )
     }
-}
-
-@Composable
-private fun LogEventCard(event: MainActivity.LogEvent) {
-    val (accentColor, label) = when (event.level) {
-        MainActivity.LogLevel.ERROR -> NeuralError to "ERROR"
-        MainActivity.LogLevel.TOOL -> NeuralSuccess to "TOOL"
-        MainActivity.LogLevel.REQUEST -> NeuralSecondary to "REQ"
-        MainActivity.LogLevel.INFO -> NeuralPrimary to "INFO"
-    }
-
-    GlassCard(
-        modifier = Modifier.fillMaxWidth(),
-        active = false,
-        cornerRadius = 16.dp,
-        contentPadding = PaddingValues(16.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .width(3.dp)
-                    .height(36.dp)
-                    .background(accentColor, RoundedCornerShape(2.dp))
-                    .align(Alignment.CenterVertically)
-            )
-
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = accentColor
-                    )
-                    Text(
-                        text = event.timestamp,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = NeuralOnSurfaceMuted
-                    )
-                }
-                Text(
-                    text = event.message,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = NeuralOnSurfaceVariant
-                )
-            }
-        }
-    }
+    if (showDivider) HairlineDivider()
 }

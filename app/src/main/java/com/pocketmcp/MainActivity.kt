@@ -22,8 +22,7 @@ import com.pocketmcp.accessibility.PhoneAccessibilityService
 import com.pocketmcp.security.SecurePrefs
 import com.pocketmcp.service.McpServerService
 import com.pocketmcp.tools.NotificationListenerService
-import com.pocketmcp.ui.components.AnimatedBackground
-import com.pocketmcp.ui.components.AnimatedBottomNav
+import com.pocketmcp.ui.components.AppTabBar
 import com.pocketmcp.ui.components.NavPage
 import com.pocketmcp.ui.screens.*
 import com.pocketmcp.ui.theme.PocketMCPTheme
@@ -176,23 +175,21 @@ public class MainActivity : ComponentActivity() {
         Scaffold(
             snackbarHost = { SnackbarHost(snackbarHostState) },
             bottomBar = {
-                AnimatedBottomNav(
+                AppTabBar(
                     selectedPage = selectedPage,
                     onPageSelected = { selectedPage = it }
                 )
             },
-            containerColor = androidx.compose.ui.graphics.Color.Transparent
+            containerColor = MaterialTheme.colorScheme.background
         ) { paddingValues ->
-            AnimatedBackground {
-                Box(modifier = Modifier.padding(paddingValues)) {
+            Box(modifier = Modifier.padding(paddingValues)) {
                     AnimatedContent(
                         targetState = selectedPage,
                         transitionSpec = {
-                            val direction = if (targetState.ordinal > initialState.ordinal) 1 else -1
-                            slideInHorizontally(tween(400, easing = FastOutSlowInEasing)) { it * direction / 3 } +
-                                    fadeIn(tween(300)) togetherWith
-                                    slideOutHorizontally(tween(300, easing = FastOutSlowInEasing)) { -it * direction / 4 } +
-                                    fadeOut(tween(200))
+                            // Quiet crossfade with a hint of scale — sections cascade in individually.
+                            (fadeIn(tween(240, easing = FastOutSlowInEasing)) +
+                                    scaleIn(initialScale = 0.985f, animationSpec = tween(300, easing = FastOutSlowInEasing))) togetherWith
+                                    fadeOut(tween(160))
                         },
                         label = "pageTransition"
                     ) { page ->
@@ -357,7 +354,6 @@ public class MainActivity : ComponentActivity() {
                         }
                     }
                 }
-            }
         }
     }
 

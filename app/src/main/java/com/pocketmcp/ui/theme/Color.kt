@@ -2,51 +2,45 @@ package com.pocketmcp.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Neural Dark Palette — inspired by cyber-dashboard aesthetics
-// Deep space backgrounds with electric cyan and violet energy accents
+/*
+ * PocketMCP palette — calm neutrals with a single blue accent, modeled on
+ * Apple's system colors (light + dark). Semantic colors are reserved for
+ * status: green = running/success, orange = attention, red = destructive.
+ */
 
-val NeuralBackground = Color(0xFF03040A)
-val NeuralSurface = Color(0xFF0A0D1A)
-val NeuralSurfaceVariant = Color(0xFF111428)
-val NeuralSurfaceHighlight = Color(0xFF181D35)
+// Accent
+val BlueLight = Color(0xFF007AFF)
+val BlueDark = Color(0xFF0A84FF)
 
-val NeuralPrimary = Color(0xFF00E5FF)
-val NeuralOnPrimary = Color(0xFF001519)
-val NeuralPrimaryContainer = Color(0x2600E5FF)
+// Semantic
+val GreenLight = Color(0xFF34C759)
+val GreenDark = Color(0xFF30D158)
+val OrangeLight = Color(0xFFFF9500)
+val OrangeDark = Color(0xFFFF9F0A)
+val RedLight = Color(0xFFFF3B30)
+val RedDark = Color(0xFFFF453A)
+val IndigoLight = Color(0xFF5856D6)
+val IndigoDark = Color(0xFF5E5CE6)
+val GrayLight = Color(0xFF8E8E93)
+val GrayDark = Color(0xFF98989D)
 
-val NeuralSecondary = Color(0xFF7C4DFF)
-val NeuralOnSecondary = Color(0xFFFFFFFF)
-val NeuralSecondaryContainer = Color(0x267C4DFF)
+// Neutral surfaces — light
+val LightBackground = Color(0xFFF2F2F7)
+val LightCard = Color(0xFFFFFFFF)
+val LightLabel = Color(0xFF000000)
+val LightSecondaryLabel = Color(0x993C3C43)
+val LightTertiaryLabel = Color(0x4D3C3C43)
+val LightSeparator = Color(0x493C3C43)
+val LightFieldFill = Color(0x1F767680)
+val LightCodeBackground = Color(0xFFF4F4F6)
 
-val NeuralTertiary = Color(0xFFFF4081)
-val NeuralOnTertiary = Color(0xFFFFFFFF)
-val NeuralTertiaryContainer = Color(0x26FF4081)
-
-val NeuralError = Color(0xFFFF5252)
-val NeuralOnError = Color(0xFFFFFFFF)
-val NeuralErrorContainer = Color(0x26FF5252)
-
-val NeuralSuccess = Color(0xFF00E676)
-val NeuralSuccessContainer = Color(0x2600E676)
-
-val NeuralWarning = Color(0xFFFFD740)
-val NeuralWarningContainer = Color(0x26FFD740)
-
-val NeuralOnBackground = Color(0xFFE8ECF4)
-val NeuralOnSurface = Color(0xFFD0D5E5)
-val NeuralOnSurfaceVariant = Color(0xFF8A91A8)
-val NeuralOnSurfaceMuted = Color(0xFF5A6078)
-
-val NeuralOutline = Color(0xFF2A3050)
-val NeuralOutlineVariant = Color(0xFF1A1F38)
-
-// Glow colors for animated backgrounds and accents
-val NeuralGlowCyan = Color(0xFF00E5FF)
-val NeuralGlowViolet = Color(0xFF7C4DFF)
-val NeuralGlowPink = Color(0xFFFF4081)
-val NeuralGlowGreen = Color(0xFF00E676)
-
-// Glassmorphism helpers
-val GlassBackground = Color(0xFF0A0D1A)
-val GlassBorder = Color(0x4D2A3050)
-val GlassBorderActive = Color(0x8000E5FF)
+// Neutral surfaces — dark
+val DarkBackground = Color(0xFF000000)
+val DarkCard = Color(0xFF1C1C1E)
+val DarkElevatedCard = Color(0xFF2C2C2E)
+val DarkLabel = Color(0xFFFFFFFF)
+val DarkSecondaryLabel = Color(0x99EBEBF5)
+val DarkTertiaryLabel = Color(0x4DEBEBF5)
+val DarkSeparator = Color(0x99545458)
+val DarkFieldFill = Color(0x3D767680)
+val DarkCodeBackground = Color(0xFF0E0E10)

@@ -1,48 +1,84 @@
 package com.pocketmcp.ui.screens
 
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.Launch
-import androidx.compose.material.icons.automirrored.rounded.Message
-import androidx.compose.material.icons.automirrored.rounded.VolumeUp
-import androidx.compose.material.icons.automirrored.rounded.InsertDriveFile
-import androidx.compose.material.icons.automirrored.rounded.Chat
-import androidx.compose.material.icons.automirrored.rounded.Rule
-import androidx.compose.material.icons.rounded.*
-import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalInspectionMode
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
-import com.pocketmcp.ui.components.*
-import com.pocketmcp.ui.theme.*
 import android.graphics.Bitmap
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.Link
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.NetworkCheck
+import androidx.compose.material.icons.rounded.Router
+import androidx.compose.material.icons.rounded.SignalCellularAlt
+import androidx.compose.material.icons.rounded.Wifi
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
+import com.pocketmcp.ui.components.AppButton
+import com.pocketmcp.ui.components.AppButtonStyle
+import com.pocketmcp.ui.components.CodeBlock
+import com.pocketmcp.ui.components.GroupedCard
+import com.pocketmcp.ui.components.GroupedSection
+import com.pocketmcp.ui.components.HairlineDivider
+import com.pocketmcp.ui.components.ListRow
+import com.pocketmcp.ui.components.RowIcon
+import com.pocketmcp.ui.components.sectionEntrance
+import com.pocketmcp.ui.theme.AppTheme
 
 @Composable
 fun DashboardScreen(
@@ -77,11 +113,22 @@ fun DashboardScreen(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
-            .padding(horizontal = 20.dp)
-            .padding(top = 24.dp, bottom = 100.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+            .padding(horizontal = 16.dp)
+            .padding(top = 12.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        DashboardHeader(isRunning = isRunning)
+        Column(modifier = Modifier.sectionEntrance(0)) {
+            Text(
+                text = "PocketMCP",
+                style = MaterialTheme.typography.headlineLarge,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Text(
+                text = "Mobile MCP Server",
+                style = MaterialTheme.typography.bodySmall,
+                color = AppTheme.colors.secondaryLabel
+            )
+        }
 
         StatusSection(
             isRunning = isRunning,
@@ -91,8 +138,14 @@ fun DashboardScreen(
             onToggleServer = onToggleServer
         )
 
-        if (isRunning) {
-            StatsCard(
+        AnimatedVisibility(
+            visible = isRunning,
+            enter = expandVertically(animationSpec = tween(240, easing = FastOutSlowInEasing)) +
+                    fadeIn(animationSpec = tween(200)),
+            exit = shrinkVertically(animationSpec = tween(200, easing = FastOutSlowInEasing)) +
+                    fadeOut(animationSpec = tween(120))
+        ) {
+            StatsSection(
                 uptimeMs = uptimeMs,
                 requestCount = requestCount,
                 toolCallCount = toolCallCount,
@@ -101,7 +154,7 @@ fun DashboardScreen(
             )
         }
 
-        ConnectionCard(
+        ConnectionSection(
             ipAddress = ipAddress,
             endpoint = endpoint,
             isSecured = isSecured,
@@ -110,7 +163,7 @@ fun DashboardScreen(
             networkType = getNetworkType(context)
         )
 
-        ConfigCard(
+        ConfigurationSection(
             port = port,
             apiKey = apiKey,
             onPortChange = onPortChange,
@@ -118,58 +171,12 @@ fun DashboardScreen(
             onGenerateKey = onGenerateKey
         )
 
-        QuickConnectCard(
+        QuickConnectSection(
             mcpConfig = mcpConfigPreview,
             onCopyConfig = onCopyConfig
         )
 
-        QrCodeCard(endpoint = endpoint)
-    }
-}
-
-@Composable
-private fun DashboardHeader(isRunning: Boolean) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column {
-            Text(
-                text = "PocketMCP",
-                style = MaterialTheme.typography.headlineMedium,
-                color = NeuralOnBackground
-            )
-            Text(
-                text = "Mobile MCP Server",
-                style = MaterialTheme.typography.bodyMedium,
-                color = NeuralOnSurfaceVariant
-            )
-        }
-
-        val chipColor = if (isRunning) NeuralSuccess else NeuralError
-        Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = chipColor.copy(alpha = 0.12f),
-            border = BorderStroke(1.dp, chipColor.copy(alpha = 0.3f))
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .background(chipColor, CircleShape)
-                )
-                Text(
-                    text = if (isRunning) "ONLINE" else "OFFLINE",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = chipColor
-                )
-            }
-        }
+        QrCodeSection(endpoint = endpoint)
     }
 }
 
@@ -181,121 +188,144 @@ private fun StatusSection(
     hasError: Boolean,
     onToggleServer: () -> Unit
 ) {
-    val targetColor = when {
-        hasError -> NeuralError
-        isRunning -> NeuralSuccess
-        else -> NeuralOnSurfaceMuted
-    }
-
-    val animatedColor by animateColorAsState(
-        targetValue = targetColor,
-        animationSpec = tween(500, easing = FastOutSlowInEasing),
+    val colors = AppTheme.colors
+    val statusColor by animateColorAsState(
+        targetValue = when {
+            hasError -> MaterialTheme.colorScheme.error
+            isRunning -> colors.success
+            else -> colors.secondaryLabel
+        },
+        animationSpec = tween(400, easing = FastOutSlowInEasing),
         label = "statusColor"
     )
 
-    GlassCard(
-        modifier = Modifier.fillMaxWidth(),
-        active = isRunning,
-        glowColor = if (isRunning) NeuralSuccess else NeuralPrimary
-    ) {
+    val pulse = rememberInfiniteTransition(label = "statusPulse")
+    val pulseScale by pulse.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.55f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulseScale"
+    )
+    val pulseAlpha by pulse.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulseAlpha"
+    )
+
+    GroupedCard(modifier = Modifier.sectionEntrance(1)) {
         Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(20.dp),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            StatusOrb(
-                isRunning = isRunning,
-                modifier = Modifier.padding(vertical = 8.dp),
-                size = 100.dp
-            )
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = statusText,
-                    style = MaterialTheme.typography.displaySmall.copy(
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = (-0.5).sp
-                    ),
-                    color = animatedColor
-                )
-                Text(
-                    text = statusDetail,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (hasError) NeuralError else NeuralOnSurfaceVariant
-                )
-            }
-
-            val buttonColor = if (isRunning) NeuralError else NeuralPrimary
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .clickable { onToggleServer() },
-                color = buttonColor.copy(alpha = 0.15f),
-                border = BorderStroke(1.dp, buttonColor.copy(alpha = 0.4f))
-            ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(contentAlignment = Alignment.Center) {
+                    if (isRunning && !hasError) {
+                        Box(
+                            modifier = Modifier
+                                .size(10.dp)
+                                .graphicsLayer {
+                                    scaleX = pulseScale
+                                    scaleY = pulseScale
+                                    alpha = pulseAlpha
+                                }
+                                .background(statusColor, CircleShape)
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(10.dp)
+                            .background(statusColor, CircleShape)
+                    )
+                }
+                Spacer(Modifier.width(10.dp))
+                Column {
                     Text(
-                        text = if (isRunning) "Stop Server" else "Start Server",
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        color = buttonColor
+                        text = statusText,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Text(
+                        text = statusDetail,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (hasError) MaterialTheme.colorScheme.error else colors.secondaryLabel
                     )
                 }
             }
+
+            AppButton(
+                text = if (isRunning) "Stop Server" else "Start Server",
+                style = if (isRunning) AppButtonStyle.Destructive else AppButtonStyle.Filled,
+                onClick = onToggleServer
+            )
         }
     }
 }
 
 @Composable
-private fun StatsCard(
+private fun StatsSection(
     uptimeMs: Long,
     requestCount: Int,
     toolCallCount: Int,
     errorCount: Int,
     connectionCount: Int
 ) {
-    val uptimeText = formatUptime(uptimeMs)
-
-    GlassCard(
-        modifier = Modifier.fillMaxWidth(),
-        active = true,
-        glowColor = NeuralSecondary
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            SectionHeader(title = "Server Stats", accentColor = NeuralSecondary)
-
+    GroupedSection(title = "Server Stats", modifier = Modifier.sectionEntrance(2)) {
+        GroupedCard {
+            ListRow(
+                title = "Uptime",
+                trailing = {
+                    Text(
+                        text = formatUptime(uptimeMs),
+                        style = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace),
+                        color = AppTheme.colors.secondaryLabel
+                    )
+                },
+                showDivider = true
+            )
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                StatItem(label = "Uptime", value = uptimeText, color = NeuralPrimary)
-                StatItem(label = "Requests", value = requestCount.toString(), color = NeuralSecondary)
-                StatItem(label = "Tools", value = toolCallCount.toString(), color = NeuralSuccess)
-                StatItem(label = "Errors", value = errorCount.toString(), color = NeuralError)
-                StatItem(label = "Clients", value = connectionCount.toString(), color = NeuralTertiary)
+                StatItem(label = "Requests", value = requestCount)
+                StatItem(label = "Tool Calls", value = toolCallCount)
+                StatItem(label = "Errors", value = errorCount)
+                StatItem(label = "Clients", value = connectionCount)
             }
         }
     }
 }
 
 @Composable
-private fun StatItem(label: String, value: String, color: Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+private fun StatItem(label: String, value: Int) {
+    val animatedValue by animateIntAsState(
+        targetValue = value,
+        animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
+        label = "statValue"
+    )
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
         Text(
-            text = value,
-            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-            color = color
+            text = animatedValue.toString(),
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onBackground
         )
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
-            color = NeuralOnSurfaceMuted
+            color = AppTheme.colors.secondaryLabel
         )
     }
 }
@@ -314,7 +344,7 @@ private fun formatUptime(ms: Long): String {
 }
 
 @Composable
-private fun ConnectionCard(
+private fun ConnectionSection(
     ipAddress: String,
     endpoint: String,
     isSecured: Boolean,
@@ -322,234 +352,197 @@ private fun ConnectionCard(
     onCopyIp: () -> Unit,
     networkType: String
 ) {
-    GlassCard(modifier = Modifier.fillMaxWidth()) {
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            SectionHeader(title = "Connection", accentColor = NeuralSecondary)
+    val colors = AppTheme.colors
+    val networkIcon = when (networkType) {
+        "WiFi" -> Icons.Rounded.Wifi
+        "Cellular" -> Icons.Rounded.SignalCellularAlt
+        else -> Icons.Rounded.NetworkCheck
+    }
 
-            val networkIcon = when (networkType) {
-                "WiFi" -> Icons.Rounded.Wifi
-                "Cellular" -> Icons.Rounded.SignalCellularAlt
-                else -> Icons.Rounded.NetworkCheck
-            }
-            val networkColor = when (networkType) {
-                "WiFi" -> NeuralSuccess
-                "Cellular" -> NeuralWarning
-                else -> NeuralOnSurfaceMuted
-            }
-
-            CompactGlassCard {
-                Icon(
-                    imageVector = networkIcon,
-                    contentDescription = null,
-                    tint = networkColor,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Network",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = NeuralOnSurfaceMuted
-                    )
+    GroupedSection(title = "Connection", modifier = Modifier.sectionEntrance(3)) {
+        GroupedCard {
+            ListRow(
+                leading = { RowIcon(networkIcon) },
+                title = "Network",
+                trailing = {
                     Text(
                         text = networkType,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = networkColor
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = colors.secondaryLabel
                     )
-                }
-            }
-
-            CompactGlassCard(onClick = onCopyIp) {
-                Icon(
-                    imageVector = Icons.Rounded.Wifi,
-                    contentDescription = null,
-                    tint = NeuralSecondary,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Local IP",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = NeuralOnSurfaceMuted
-                    )
+                },
+                showDivider = true
+            )
+            ListRow(
+                leading = { RowIcon(Icons.Rounded.Router) },
+                title = "Local IP",
+                trailing = {
                     Text(
                         text = ipAddress,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = NeuralOnSurface,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = colors.secondaryLabel,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                }
-            }
-
-            CompactGlassCard(onClick = onCopyEndpoint) {
-                Icon(
-                    imageVector = Icons.Rounded.Link,
-                    contentDescription = null,
-                    tint = NeuralPrimary,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Endpoint",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = NeuralOnSurfaceMuted
-                    )
+                },
+                showDivider = true,
+                onClick = onCopyIp
+            )
+            ListRow(
+                leading = { RowIcon(Icons.Rounded.Link) },
+                title = "Endpoint",
+                trailing = {
                     Text(
                         text = endpoint,
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontFamily = FontFamily.Monospace
-                        ),
-                        color = NeuralPrimary,
+                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                        color = colors.secondaryLabel,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                },
+                showDivider = true,
+                onClick = onCopyEndpoint
+            )
+            ListRow(
+                leading = { RowIcon(Icons.Rounded.Lock) },
+                title = "Authentication",
+                trailing = {
+                    Text(
+                        text = if (isSecured) "Enabled" else "Disabled",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = if (isSecured) colors.success else colors.warning
+                    )
                 }
-                Icon(
-                    imageVector = Icons.Rounded.ContentCopy,
-                    contentDescription = "Copy",
-                    tint = NeuralOnSurfaceMuted,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-
-            val authColor = if (isSecured) NeuralSuccess else NeuralWarning
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .background(authColor, CircleShape)
-                )
-                Text(
-                    text = if (isSecured) "Authentication Enabled" else "Authentication Disabled",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = authColor
-                )
-            }
+            )
         }
     }
 }
 
 @Composable
-private fun ConfigCard(
+private fun ConfigurationSection(
     port: String,
     apiKey: String,
     onPortChange: (String) -> Unit,
     onApiKeyChange: (String) -> Unit,
     onGenerateKey: () -> Unit
 ) {
-    GlassCard(modifier = Modifier.fillMaxWidth()) {
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            SectionHeader(title = "Configuration", accentColor = NeuralTertiary)
-
-            OutlinedTextField(
+    GroupedSection(title = "Configuration", modifier = Modifier.sectionEntrance(4)) {
+        GroupedCard {
+            ConfigTextFieldRow(
+                label = "Port",
                 value = port,
                 onValueChange = { onPortChange(it.filter { c -> c.isDigit() }) },
-                label = { Text("Port") },
-                leadingIcon = {
-                    Icon(Icons.Rounded.SettingsEthernet, null, tint = NeuralOnSurfaceMuted)
-                },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = NeuralPrimary.copy(alpha = 0.6f),
-                    unfocusedBorderColor = NeuralOutline,
-                    focusedLabelColor = NeuralPrimary,
-                    unfocusedLabelColor = NeuralOnSurfaceMuted,
-                    focusedTextColor = NeuralOnSurface,
-                    unfocusedTextColor = NeuralOnSurface,
-                    focusedContainerColor = NeuralSurfaceHighlight.copy(alpha = 0.5f),
-                    unfocusedContainerColor = NeuralSurfaceHighlight.copy(alpha = 0.3f)
-                )
+                keyboardType = KeyboardType.Number,
+                fieldMaxWidth = 100.dp
             )
-
-            OutlinedTextField(
+            HairlineDivider()
+            ConfigTextFieldRow(
+                label = "API Key",
                 value = apiKey,
                 onValueChange = onApiKeyChange,
-                label = { Text("API Key") },
-                leadingIcon = {
-                    Icon(Icons.Rounded.VpnKey, null, tint = NeuralOnSurfaceMuted)
-                },
-                trailingIcon = {
-                    TextButton(
-                        onClick = onGenerateKey,
-                        colors = ButtonDefaults.textButtonColors(contentColor = NeuralPrimary)
-                    ) {
-                        Text("Generate", style = MaterialTheme.typography.labelMedium)
-                    }
-                },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = NeuralPrimary.copy(alpha = 0.6f),
-                    unfocusedBorderColor = NeuralOutline,
-                    focusedLabelColor = NeuralPrimary,
-                    unfocusedLabelColor = NeuralOnSurfaceMuted,
-                    focusedTextColor = NeuralOnSurface,
-                    unfocusedTextColor = NeuralOnSurface,
-                    focusedContainerColor = NeuralSurfaceHighlight.copy(alpha = 0.5f),
-                    unfocusedContainerColor = NeuralSurfaceHighlight.copy(alpha = 0.3f)
-                )
+                keyboardType = KeyboardType.Text,
+                monospace = true,
+                fieldMaxWidth = 200.dp
             )
+            HairlineDivider()
+            ActionRow(text = "Generate New Key", onClick = onGenerateKey)
         }
     }
 }
 
 @Composable
-private fun QuickConnectCard(
+private fun ConfigTextFieldRow(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    keyboardType: KeyboardType,
+    monospace: Boolean = false,
+    fieldMaxWidth: Dp
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .defaultMinSize(minHeight = 48.dp)
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        Spacer(Modifier.weight(1f))
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            singleLine = true,
+            textStyle = MaterialTheme.typography.bodyLarge.copy(
+                textAlign = TextAlign.End,
+                fontFamily = if (monospace) FontFamily.Monospace else FontFamily.Default,
+                color = MaterialTheme.colorScheme.onBackground
+            ),
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            modifier = Modifier.widthIn(max = fieldMaxWidth)
+        )
+    }
+}
+
+@Composable
+private fun ActionRow(text: String, onClick: () -> Unit) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val pressBackground by animateColorAsState(
+        targetValue = if (pressed) MaterialTheme.colorScheme.onBackground.copy(alpha = 0.06f) else Color.Transparent,
+        animationSpec = tween(120),
+        label = "actionPress"
+    )
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .defaultMinSize(minHeight = 48.dp)
+            .background(pressBackground)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.primary
+        )
+    }
+}
+
+@Composable
+private fun QuickConnectSection(
     mcpConfig: String,
     onCopyConfig: () -> Unit
 ) {
-    GlassCard(modifier = Modifier.fillMaxWidth()) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+    GroupedSection(title = "Quick Connect", modifier = Modifier.sectionEntrance(5)) {
+        GroupedCard {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp)
             ) {
-                SectionHeader(title = "Quick Connect", accentColor = NeuralPrimary)
-                IconButton(onClick = onCopyConfig) {
-                    Icon(
-                        imageVector = Icons.Rounded.ContentCopy,
-                        contentDescription = "Copy Config",
-                        tint = NeuralOnSurfaceMuted,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
+                CodeBlock(text = mcpConfig)
             }
-
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = NeuralBackground.copy(alpha = 0.6f),
-                border = BorderStroke(1.dp, NeuralOutline)
-            ) {
-                SelectionContainer {
-                    Text(
-                        text = mcpConfig,
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontFamily = FontFamily.Monospace,
-                            lineHeight = 18.sp
-                        ),
-                        color = NeuralOnSurfaceVariant,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                    )
-                }
-            }
+            HairlineDivider()
+            ListRow(
+                leading = { RowIcon(Icons.Rounded.ContentCopy) },
+                title = "Copy MCP client config",
+                onClick = onCopyConfig
+            )
         }
     }
 }
 
 @Composable
-private fun QrCodeCard(endpoint: String) {
+private fun QrCodeSection(endpoint: String) {
     if (endpoint.isBlank() || endpoint.contains("unknown")) return
     if (LocalInspectionMode.current) return
 
@@ -557,32 +550,40 @@ private fun QrCodeCard(endpoint: String) {
         generateQrBitmap(endpoint, 400)
     }
 
-    GlassCard(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            SectionHeader(title = "Scan to Connect", accentColor = NeuralPrimary)
-
-            if (qrBitmap != null) {
-                AndroidView(
-                    factory = { ctx ->
-                        android.widget.ImageView(ctx).apply {
-                            setImageBitmap(qrBitmap)
-                        }
-                    },
-                    modifier = Modifier
-                        .size(180.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Color.White)
-                        .padding(8.dp)
-                )
-            } else {
-                Text(
-                    text = "Unable to generate QR code",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = NeuralError
-                )
+    GroupedSection(title = "Scan to Connect", modifier = Modifier.sectionEntrance(6)) {
+        GroupedCard {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                if (qrBitmap != null) {
+                    AndroidView(
+                        factory = { ctx ->
+                            android.widget.ImageView(ctx).apply {
+                                setImageBitmap(qrBitmap)
+                            }
+                        },
+                        modifier = Modifier
+                            .size(180.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color.White)
+                            .padding(8.dp)
+                    )
+                    Text(
+                        text = "Scan with any MCP client to connect",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = AppTheme.colors.secondaryLabel
+                    )
+                } else {
+                    Text(
+                        text = "Unable to generate QR code",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
             }
         }
     }
