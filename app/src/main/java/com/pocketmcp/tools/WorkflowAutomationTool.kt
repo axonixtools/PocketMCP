@@ -361,12 +361,9 @@ class WorkflowAutomationTool : McpToolHandler {
         return try {
             val success = when (direction) {
                 "up" -> PhoneAccessibilityService.runGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_RECENTS)
-                "down" -> PhoneAccessibilityService.runGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_POWER_DIALOG)
-                "left", "right" -> {
-                    // For left/right, we'll need to implement custom swipe logic
-                    // For now, return true as placeholder
-                    true
-                }
+                "down" -> PhoneAccessibilityService.runGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS)
+                "left" -> performSwipeGesture(0.8f, 0.5f, 0.2f, 0.5f, duration)
+                "right" -> performSwipeGesture(0.2f, 0.5f, 0.8f, 0.5f, duration)
                 else -> return buildStepError(stepIndex, "Invalid direction: $direction")
             }
 
@@ -382,6 +379,18 @@ class WorkflowAutomationTool : McpToolHandler {
         }
     }
 
+    private suspend fun performSwipeGesture(
+        fromX: Float, fromY: Float, toX: Float, toY: Float, durationMs: Long
+    ): Boolean {
+        val direction = when {
+            fromX > toX -> "left"
+            fromX < toX -> "right"
+            fromY > toY -> "up"
+            else -> "down"
+        }
+        return PhoneAccessibilityService.runSwipe(direction, 0.6f, durationMs)
+    }
+
     private suspend fun executeTypeStep(
         params: JsonObject,
         stepIndex: Int,
@@ -389,19 +398,83 @@ class WorkflowAutomationTool : McpToolHandler {
     ): JsonObject {
         val text = argString(params, "text")?.trim()
             ?: return buildStepError(stepIndex, "text required")
+        val targetHint = argString(params, "target_hint")?.trim()
+        val clearFirst = argBoolean(params, "clear_first") ?: false
 
         return try {
-            // Placeholder implementation - would need to integrate with accessibility service
-            val success = true // TODO: Implement actual text typing via accessibility
+            val success = typeTextViaAccessibility(text, targetHint, clearFirst)
             buildJsonObject {
                 put("step_index", stepIndex)
                 put("action", "type")
                 put("success", success)
                 put("text", text)
+                put("target_hint", targetHint ?: "")
+                put("clear_first", clearFirst)
             }
         } catch (error: Exception) {
             buildStepError(stepIndex, "Type failed: ${error.message}")
         }
+    }
+
+    private suspend fun typeTextViaAccessibility(text: String, targetHint: String?, clearFirst: Boolean): Boolean {
+        val snapshot = PhoneAccessibilityService.captureScreenSnapshot(100) ?: return false
+
+        // Strategy: find target field by hint or by EditText class name
+        val targetNode = if (!targetHint.isNullOrBlank()) {
+            snapshot.nodes.find { node ->
+                val merged = "${node.text} ${node.contentDescription}".lowercase()
+                merged.contains(targetHint.lowercase())
+            }
+        } else {
+            snapshot.nodes.find { node ->
+                node.className.contains("EditText", ignoreCase = true) ||
+                node.className.contains("TextView", ignoreCase = true)
+            }
+        }
+
+        if (targetNode == null) return false
+
+        // Tap to focus the field
+        val bounds = targetNode.bounds
+        val tapped = PhoneAccessibilityService.runTap(bounds.centerX(), bounds.centerY(), 80L)
+        if (!tapped) return false
+
+        delay(300)
+
+        // Try to use the accessibility service directly for text input
+        val service = PhoneAccessibilityService.getInstance() ?: return tapped
+        val root = service.rootInActiveWindow ?: return tapped
+
+        // Find the focused node
+        val focusedNode = findFocusedEditText(root)
+        if (focusedNode != null) {
+            val args = android.os.Bundle().apply {
+                putCharSequence(
+                    android.view.accessibility.AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
+                    text
+                )
+            }
+            val setTextResult = focusedNode.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+            focusedNode.recycle()
+            return setTextResult
+        }
+
+        root.recycle()
+        return tapped
+    }
+
+    private fun findFocusedEditText(root: android.view.accessibility.AccessibilityNodeInfo?): android.view.accessibility.AccessibilityNodeInfo? {
+        if (root == null) return null
+        if (root.isFocused && root.className?.toString()?.contains("EditText") == true) {
+            return root
+        }
+        for (i in 0 until root.childCount) {
+            val child = root.getChild(i)
+            val found = findFocusedEditText(child)
+            if (found != null) return found
+            child?.recycle()
+        }
+        return null
     }
 
     private fun buildStepError(stepIndex: Int, error: String): JsonObject {

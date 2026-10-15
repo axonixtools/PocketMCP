@@ -1,97 +1,137 @@
 package com.pocketmcp
 
 import android.Manifest
-import android.animation.ArgbEvaluator
-import android.animation.ValueAnimator
-import android.content.BroadcastReceiver
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
+import android.content.*
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
-import android.view.View
-import android.view.animation.DecelerateInterpolator
-import android.view.animation.OvershootInterpolator
-import android.widget.Button
-import android.widget.EditText
-import android.widget.LinearLayout
-import android.widget.TextView
-import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.Toolbar
-import androidx.core.app.ActivityCompat
+import android.view.HapticFeedbackConstants
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
-import androidx.core.widget.doAfterTextChanged
-import com.google.android.material.switchmaterial.SwitchMaterial
 import com.pocketmcp.accessibility.PhoneAccessibilityService
 import com.pocketmcp.service.McpServerService
-import java.security.SecureRandom
+import com.pocketmcp.tools.NotificationListenerService
+import com.pocketmcp.ui.components.AnimatedBackground
+import com.pocketmcp.ui.components.AnimatedBottomNav
+import com.pocketmcp.ui.components.NavPage
+import com.pocketmcp.ui.screens.*
+import com.pocketmcp.ui.theme.PocketMCPTheme
+import kotlinx.coroutines.launch
 import java.net.NetworkInterface
+import java.security.SecureRandom
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 
-class MainActivity : AppCompatActivity() {
-
-    private lateinit var tvStatus: TextView
-    private lateinit var tvStatusDetail: TextView
-    private lateinit var statusIndicator: View
-    private lateinit var serverSwitch: SwitchMaterial
-    private lateinit var tvEndpoint: TextView
-    private lateinit var etPort: EditText
-    private lateinit var etApiKey: EditText
-    private lateinit var tvPermissionSummary: TextView
-    private lateinit var tvMcpConfigPreview: TextView
-    private lateinit var btnStartStop: Button
-    private lateinit var cardsContainer: LinearLayout
-    private lateinit var cardStatus: View
-    private lateinit var cardConfig: View
-    private lateinit var cardPermissions: View
-    private lateinit var cardQuickConnect: View
-    private lateinit var cardUseCases: View
-
-    private var suppressSwitchListener = false
-    private var hasAnimatedEntrance = false
+public class MainActivity : ComponentActivity() {
 
     private val preferences by lazy {
         getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
 
+    public data class LogEvent(
+        public val timestamp: String,
+        public val message: String,
+        public val level: LogLevel
+    )
+    public enum class LogLevel { INFO, TOOL, REQUEST, ERROR }
+
+    private val logEvents = mutableStateListOf<LogEvent>()
+
+    // State holders for Compose
+    private var isServerRunning by mutableStateOf(false)
+    private var serverStatusText by mutableStateOf("")
+    private var serverStatusDetail by mutableStateOf("")
+    private var serverHasError by mutableStateOf(false)
+    private var isSecured by mutableStateOf(false)
+    private var ipAddress by mutableStateOf("")
+    private var endpoint by mutableStateOf("")
+    private var portText by mutableStateOf("8080")
+    private var apiKeyText by mutableStateOf("")
+    private var mcpConfigText by mutableStateOf("")
+
+    // Server stats
+    private var uptimeMs by mutableStateOf(0L)
+    private var requestCount by mutableStateOf(0)
+    private var toolCallCount by mutableStateOf(0)
+    private var errorCount by mutableStateOf(0)
+    private var connectionCount by mutableStateOf(0)
+
+    private var accessibilityEnabled by mutableStateOf(false)
+    private var notificationAccessEnabled by mutableStateOf(false)
+    private var mediaAccessEnabled by mutableStateOf(false)
+    private var smsPermissionGranted by mutableStateOf(false)
+    private var contactsPermissionGranted by mutableStateOf(false)
+    private var callPermissionGranted by mutableStateOf(false)
+    private var locationPermissionGranted by mutableStateOf(false)
+    private var recordAudioPermissionGranted by mutableStateOf(false)
+    private var cameraPermissionGranted by mutableStateOf(false)
+    private var tailscaleEnabled by mutableStateOf(false)
+    private var developerModeEnabled by mutableStateOf(false)
+    private var safetyFilterMode by mutableStateOf(SAFETY_STRICT)
+
     private val statusReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            if (intent.action != McpServerService.ACTION_STATUS) {
-                return
-            }
+            if (intent.action != McpServerService.ACTION_STATUS) return
 
             val running = intent.getBooleanExtra(McpServerService.EXTRA_RUNNING, false)
             val status = intent.getStringExtra(McpServerService.EXTRA_STATUS)
             val error = intent.getStringExtra(McpServerService.EXTRA_ERROR)
-            val secured = intent.getBooleanExtra(McpServerService.EXTRA_SECURED, !currentApiKey().isNullOrBlank())
-            updateServerStatus(running, status, error, secured)
+            val secured = intent.getBooleanExtra(
+                McpServerService.EXTRA_SECURED,
+                !apiKeyText.isNullOrBlank()
+            )
+
+            isServerRunning = running
+            serverStatusText = resolveStatusText(running, status)
+            serverStatusDetail = when {
+                !error.isNullOrBlank() -> "Error: $error"
+                running -> "Listening for MCP connections"
+                else -> "Server idle"
+            }
+            serverHasError = !error.isNullOrBlank()
+            isSecured = secured
+
+            uptimeMs = intent.getLongExtra(McpServerService.EXTRA_UPTIME_MS, 0L)
+            requestCount = intent.getIntExtra(McpServerService.EXTRA_REQUEST_COUNT, 0)
+            toolCallCount = intent.getIntExtra(McpServerService.EXTRA_TOOL_CALL_COUNT, 0)
+            errorCount = intent.getIntExtra(McpServerService.EXTRA_ERROR_COUNT, 0)
+            connectionCount = intent.getIntExtra(McpServerService.EXTRA_CONNECTION_COUNT, 0)
+
+            addRuntimeLog("Status update: ${resolveStatusText(running, status)}", LogLevel.INFO)
         }
+    }
+
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { _ ->
+        refreshPermissionStates()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
 
-        val toolbar: Toolbar = findViewById(R.id.toolbar)
-        setSupportActionBar(toolbar)
-        supportActionBar?.setDisplayShowTitleEnabled(false)
-
-        bindViews()
         restoreSavedSettings()
-        wireUiActions()
-        updatePermissionsSummary()
-        requestMissingPermissions()
+        restoreUiPreferences()
+        refreshPermissionStates()
         renderConnectionInfo()
-        updateServerStatus(
-            running = false,
-            statusText = getString(R.string.server_status_stopped),
-            error = null,
-            secured = !currentApiKey().isNullOrBlank()
-        )
+
+        setContent {
+            PocketMCPTheme {
+                MainScreen()
+            }
+        }
+
+        addRuntimeLog("Dashboard loaded", LogLevel.INFO)
     }
 
     override fun onStart() {
@@ -107,12 +147,8 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         queryServiceStatus()
-        updatePermissionsSummary()
+        refreshPermissionStates()
         renderConnectionInfo()
-        if (!hasAnimatedEntrance) {
-            cardsContainer.post { animateEntrance() }
-            hasAnimatedEntrance = true
-        }
     }
 
     override fun onStop() {
@@ -120,104 +156,232 @@ class MainActivity : AppCompatActivity() {
         super.onStop()
     }
 
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == PERMISSION_REQUEST_CODE) {
-            updatePermissionsSummary()
+    // --- Compose UI ---
+
+    @OptIn(ExperimentalMaterial3Api::class)
+    @Composable
+    private fun MainScreen() {
+        var selectedPage by remember { mutableStateOf(NavPage.Server) }
+        val snackbarHostState = remember { SnackbarHostState() }
+        val scope = rememberCoroutineScope()
+
+        fun showSnackbar(message: String) {
+            scope.launch {
+                snackbarHostState.showSnackbar(message, duration = SnackbarDuration.Short)
+            }
+        }
+
+        Scaffold(
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+            bottomBar = {
+                AnimatedBottomNav(
+                    selectedPage = selectedPage,
+                    onPageSelected = { selectedPage = it }
+                )
+            },
+            containerColor = androidx.compose.ui.graphics.Color.Transparent
+        ) { paddingValues ->
+            AnimatedBackground {
+                Box(modifier = Modifier.padding(paddingValues)) {
+                    AnimatedContent(
+                        targetState = selectedPage,
+                        transitionSpec = {
+                            val direction = if (targetState.ordinal > initialState.ordinal) 1 else -1
+                            slideInHorizontally(tween(400, easing = FastOutSlowInEasing)) { it * direction / 3 } +
+                                    fadeIn(tween(300)) togetherWith
+                                    slideOutHorizontally(tween(300, easing = FastOutSlowInEasing)) { -it * direction / 4 } +
+                                    fadeOut(tween(200))
+                        },
+                        label = "pageTransition"
+                    ) { page ->
+                        when (page) {
+                            NavPage.Server -> DashboardScreen(
+                                isRunning = isServerRunning,
+                                statusText = serverStatusText.ifBlank { "Stopped" },
+                                statusDetail = serverStatusDetail.ifBlank { "Server idle" },
+                                hasError = serverHasError,
+                                isSecured = isSecured,
+                                ipAddress = ipAddress,
+                                endpoint = endpoint,
+                                port = portText,
+                                apiKey = apiKeyText,
+                                mcpConfigPreview = mcpConfigText,
+                                uptimeMs = uptimeMs,
+                                requestCount = requestCount,
+                                toolCallCount = toolCallCount,
+                                errorCount = errorCount,
+                                connectionCount = connectionCount,
+                                onToggleServer = { toggleServerWithHaptic() },
+                                onPortChange = {
+                                    portText = it
+                                    saveSettings()
+                                    renderConnectionInfo()
+                                },
+                                onApiKeyChange = {
+                                    apiKeyText = it
+                                    saveSettings()
+                                    renderConnectionInfo()
+                                    refreshPermissionStates()
+                                },
+                                onGenerateKey = {
+                                    apiKeyText = generateApiKey()
+                                    saveSettings()
+                                    renderConnectionInfo()
+                                    refreshPermissionStates()
+                                    showSnackbar(getString(R.string.api_key_generated))
+                                    addRuntimeLog("API key regenerated", LogLevel.INFO)
+                                },
+                                onCopyEndpoint = {
+                                    copyToClipboard("MCP endpoint", endpoint)
+                                    showSnackbar(getString(R.string.endpoint_copied))
+                                    addRuntimeLog("Endpoint copied to clipboard", LogLevel.INFO)
+                                },
+                                onCopyConfig = {
+                                    copyToClipboard("MCP config", mcpConfigText)
+                                    showSnackbar(getString(R.string.config_copied))
+                                    addRuntimeLog("MCP config copied to clipboard", LogLevel.INFO)
+                                },
+                                onCopyIp = {
+                                    copyToClipboard("IP address", ipAddress)
+                                    showSnackbar("IP address copied")
+                                    addRuntimeLog("IP address copied to clipboard", LogLevel.INFO)
+                                }
+                            )
+
+                            NavPage.Logs -> LogsScreen(
+                                logEvents = logEvents,
+                                onClearLogs = { logEvents.clear() },
+                                onViewAllNotifications = {
+                                    showSnackbar("Notification history view coming next")
+                                    addRuntimeLog("Notification history requested", LogLevel.INFO)
+                                }
+                            )
+
+                            NavPage.Tools -> ToolsScreen(
+                                accessibilityEnabled = accessibilityEnabled,
+                                notificationAccessEnabled = notificationAccessEnabled,
+                                mediaAccessEnabled = mediaAccessEnabled,
+                                smsPermissionGranted = smsPermissionGranted,
+                                contactsPermissionGranted = contactsPermissionGranted,
+                                callPermissionGranted = callPermissionGranted,
+                                locationPermissionGranted = locationPermissionGranted,
+                                recordAudioPermissionGranted = recordAudioPermissionGranted,
+                                cameraPermissionGranted = cameraPermissionGranted
+                            )
+
+                            NavPage.Settings -> SettingsScreen(
+                                isApiAuthEnabled = apiKeyText.isNotBlank(),
+                                isTailscaleEnabled = tailscaleEnabled,
+                                isNotificationAccessEnabled = notificationAccessEnabled,
+                                isFileStorageEnabled = mediaAccessEnabled,
+                                isDeveloperModeEnabled = developerModeEnabled,
+                                accessibilityState = if (accessibilityEnabled) "Enabled in settings" else "Missing — tap to enable",
+                                safetyFilterMode = safetyFilterMode,
+                                onToggleApiAuth = { enabled ->
+                                    if (enabled) {
+                                        if (apiKeyText.isBlank()) {
+                                            apiKeyText = generateApiKey()
+                                            showSnackbar(getString(R.string.api_key_generated))
+                                        }
+                                        addRuntimeLog("API key auth enabled", LogLevel.INFO)
+                                    } else {
+                                        apiKeyText = ""
+                                        addRuntimeLog("API key auth disabled", LogLevel.INFO)
+                                    }
+                                    saveSettings()
+                                    renderConnectionInfo()
+                                    refreshPermissionStates()
+                                },
+                                onToggleTailscale = { enabled ->
+                                    tailscaleEnabled = enabled
+                                    preferences.edit().putBoolean(PREF_TAILSCALE_ENABLED, enabled).apply()
+                                    addRuntimeLog(if (enabled) "Tailscale integration enabled" else "Tailscale integration disabled", LogLevel.INFO)
+                                },
+                                onToggleNotificationAccess = {
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                        ContextCompat.checkSelfPermission(
+                                            this@MainActivity,
+                                            Manifest.permission.POST_NOTIFICATIONS
+                                        ) != PackageManager.PERMISSION_GRANTED
+                                    ) {
+                                        requestPermissionLauncher.launch(
+                                            arrayOf(Manifest.permission.POST_NOTIFICATIONS)
+                                        )
+                                    }
+                                    startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                                    addRuntimeLog("Opened notification listener settings", LogLevel.INFO)
+                                },
+                                onToggleFileStorage = { enabled ->
+                                    if (enabled) {
+                                        requestMediaPermissionIfMissing()
+                                        addRuntimeLog("Requested file storage permission", LogLevel.INFO)
+                                    } else {
+                                        showSnackbar("Disable file access from Android settings")
+                                        refreshPermissionStates()
+                                    }
+                                },
+                                onToggleDeveloperMode = { enabled ->
+                                    developerModeEnabled = enabled
+                                    preferences.edit().putBoolean(PREF_DEVELOPER_MODE, enabled).apply()
+                                    addRuntimeLog(if (enabled) "Developer mode enabled" else "Developer mode disabled", LogLevel.INFO)
+                                },
+                                onOpenAccessibilitySettings = {
+                                    startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                                    addRuntimeLog("Opened accessibility settings", LogLevel.INFO)
+                                },
+                                onCycleSafetyFilter = {
+                                    val next = when (safetyFilterMode) {
+                                        SAFETY_STRICT -> SAFETY_BALANCED
+                                        SAFETY_BALANCED -> SAFETY_OFF
+                                        else -> SAFETY_STRICT
+                                    }
+                                    safetyFilterMode = next
+                                    preferences.edit().putString(PREF_SAFETY_FILTER_MODE, next).apply()
+                                    addRuntimeLog("Safety filter set to $next", LogLevel.INFO)
+                                },
+                                onManageKeys = {
+                                    val key = if (apiKeyText.isNotBlank()) apiKeyText else {
+                                        apiKeyText = generateApiKey()
+                                        saveSettings()
+                                        renderConnectionInfo()
+                                        refreshPermissionStates()
+                                        apiKeyText
+                                    }
+                                    copyToClipboard("PocketMCP API key", key)
+                                    showSnackbar("API key copied")
+                                    addRuntimeLog("API key copied from settings", LogLevel.INFO)
+                                }
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 
-    private fun bindViews() {
-        tvStatus = findViewById(R.id.tvStatus)
-        tvStatusDetail = findViewById(R.id.tvStatusDetail)
-        statusIndicator = findViewById(R.id.status_indicator)
-        serverSwitch = findViewById(R.id.server_switch)
-        tvEndpoint = findViewById(R.id.tvEndpoint)
-        etPort = findViewById(R.id.etPort)
-        etApiKey = findViewById(R.id.etApiKey)
-        tvPermissionSummary = findViewById(R.id.tvPermissionSummary)
-        tvMcpConfigPreview = findViewById(R.id.tvMcpConfigPreview)
-        btnStartStop = findViewById(R.id.btnStartStop)
-        cardsContainer = findViewById(R.id.cardsContainer)
-        cardStatus = findViewById(R.id.cardStatus)
-        cardConfig = findViewById(R.id.cardConfig)
-        cardPermissions = findViewById(R.id.cardPermissions)
-        cardQuickConnect = findViewById(R.id.cardQuickConnect)
-        cardUseCases = findViewById(R.id.cardUseCases)
-    }
+    // --- Business Logic ---
 
-    private fun wireUiActions() {
-        serverSwitch.setOnCheckedChangeListener { _, isChecked ->
-            if (suppressSwitchListener) {
-                return@setOnCheckedChangeListener
-            }
-            if (isChecked) {
-                startServer()
-            } else {
-                stopServer()
-            }
-        }
-
-        btnStartStop.setOnClickListener {
-            btnStartStop.performHapticFeedback(android.view.HapticFeedbackConstants.CONTEXT_CLICK)
-            if (serverSwitch.isChecked) {
-                stopServer()
-            } else {
-                startServer()
-            }
-        }
-
-        findViewById<Button>(R.id.btnGenerateKey).setOnClickListener {
-            val generated = generateApiKey()
-            etApiKey.setText(generated)
-            saveSettings()
-            renderConnectionInfo()
-            animateCardPulse(cardConfig)
-            Toast.makeText(this, R.string.api_key_generated, Toast.LENGTH_SHORT).show()
-        }
-
-        findViewById<Button>(R.id.btnCopyEndpoint).setOnClickListener {
-            copyToClipboard("MCP endpoint", tvEndpoint.text.toString())
-            Toast.makeText(this, R.string.endpoint_copied, Toast.LENGTH_SHORT).show()
-        }
-
-        findViewById<Button>(R.id.btnCopyConfig).setOnClickListener {
-            copyToClipboard("MCP config", tvMcpConfigPreview.text.toString())
-            Toast.makeText(this, R.string.config_copied, Toast.LENGTH_SHORT).show()
-        }
-
-        findViewById<Button>(R.id.btnRequestPermissions).setOnClickListener {
-            requestMissingPermissions()
-            animateCardPulse(cardPermissions)
-        }
-
-        etPort.doAfterTextChanged {
-            saveSettings()
-            renderConnectionInfo()
-        }
-        etApiKey.doAfterTextChanged {
-            saveSettings()
-            renderConnectionInfo()
+    private fun toggleServerWithHaptic() {
+        window.decorView.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
+        if (isServerRunning) {
+            stopServer()
+        } else {
+            startServer()
         }
     }
 
     private fun startServer() {
-        val port = parsePort()
+        val port = portText.toIntOrNull()?.takeIf { it in 1..65535 }
         if (port == null) {
-            Toast.makeText(this, R.string.invalid_port, Toast.LENGTH_SHORT).show()
-            setSwitchChecked(false)
+            addRuntimeLog("Invalid port: $portText", LogLevel.ERROR)
             return
         }
 
         saveSettings()
 
-        val apiKey = currentApiKey()?.trim().orEmpty()
+        val apiKey = apiKeyText.trim()
         if (apiKey.isBlank()) {
-            Toast.makeText(this, R.string.security_warning_no_key, Toast.LENGTH_LONG).show()
+            addRuntimeLog("Security warning: no API key set", LogLevel.ERROR)
         }
 
         val startIntent = Intent(this, McpServerService::class.java).apply {
@@ -228,12 +392,13 @@ class MainActivity : AppCompatActivity() {
             }
         }
         ContextCompat.startForegroundService(this, startIntent)
-        updateServerStatus(
-            running = true,
-            statusText = getString(R.string.server_status_starting),
-            error = null,
-            secured = apiKey.isNotBlank()
-        )
+
+        isServerRunning = true
+        serverStatusText = getString(R.string.server_status_starting)
+        serverStatusDetail = "Initializing server..."
+        serverHasError = false
+        isSecured = apiKey.isNotBlank()
+        addRuntimeLog("Server start requested on port $port", LogLevel.INFO)
     }
 
     private fun stopServer() {
@@ -241,12 +406,14 @@ class MainActivity : AppCompatActivity() {
             action = McpServerService.ACTION_STOP
         }
         startService(stopIntent)
-        updateServerStatus(
-            running = false,
-            statusText = getString(R.string.server_status_stopping),
-            error = null,
-            secured = !currentApiKey().isNullOrBlank()
-        )
+
+        isServerRunning = false
+        serverStatusText = getString(R.string.server_status_stopping)
+        serverStatusDetail = "Shutting down..."
+        serverHasError = false
+        uptimeMs = 0L
+        connectionCount = 0
+        addRuntimeLog("Server stop requested", LogLevel.INFO)
     }
 
     private fun queryServiceStatus() {
@@ -256,154 +423,74 @@ class MainActivity : AppCompatActivity() {
         startService(queryIntent)
     }
 
-    private fun updateServerStatus(
-        running: Boolean,
-        statusText: String?,
-        error: String?,
-        secured: Boolean
-    ) {
-        // Keep status card visible even if a status update arrives during entry animations.
-        cardStatus.alpha = 1f
-        cardStatus.translationY = 0f
-
-        setSwitchChecked(running)
-        updatePrimaryButtonText(running)
-
-        val resolvedStatus = resolveStatusText(running, statusText)
-        tvStatus.text = resolvedStatus
-
-        val securityText = if (secured) {
-            getString(R.string.security_state_enabled)
-        } else {
-            getString(R.string.security_state_disabled)
-        }
-        tvStatusDetail.text = if (error.isNullOrBlank()) {
-            securityText
-        } else {
-            "$securityText\n${getString(R.string.last_error_prefix)} $error"
-        }
-
-        val indicatorDrawable = if (running) {
-            R.drawable.status_indicator_on
-        } else {
-            R.drawable.status_indicator_off
-        }
-        statusIndicator.background = ContextCompat.getDrawable(this, indicatorDrawable)
-        animateStatusVisuals(running)
-    }
-
-    private fun setSwitchChecked(isChecked: Boolean) {
-        suppressSwitchListener = true
-        serverSwitch.isChecked = isChecked
-        suppressSwitchListener = false
-    }
-
     private fun renderConnectionInfo() {
-        val port = parsePort() ?: 8080
-        val ipAddress = getIpAddress()
-        val endpoint = "http://$ipAddress:$port/mcp"
-        tvEndpoint.text = endpoint
-
-        val apiKey = currentApiKey().orEmpty()
-        tvMcpConfigPreview.text = buildMcpConfig(endpoint, apiKey)
+        val port = portText.toIntOrNull() ?: 8080
+        ipAddress = resolveIpAddress()
+        endpoint = "http://$ipAddress:$port/mcp"
+        mcpConfigText = buildMcpConfig(endpoint, apiKeyText)
+        isSecured = apiKeyText.isNotBlank()
     }
 
     private fun restoreSavedSettings() {
         val savedPort = preferences.getInt(PREF_PORT, 8080)
-        etPort.setText(savedPort.toString())
+        portText = savedPort.toString()
 
         if (preferences.contains(PREF_API_KEY)) {
-            etApiKey.setText(preferences.getString(PREF_API_KEY, "") ?: "")
+            apiKeyText = preferences.getString(PREF_API_KEY, "") ?: ""
         } else {
-            val generated = generateApiKey()
-            etApiKey.setText(generated)
+            apiKeyText = generateApiKey()
             saveSettings()
         }
     }
 
+    private fun restoreUiPreferences() {
+        tailscaleEnabled = preferences.getBoolean(PREF_TAILSCALE_ENABLED, false)
+        developerModeEnabled = preferences.getBoolean(PREF_DEVELOPER_MODE, false)
+        safetyFilterMode = preferences.getString(PREF_SAFETY_FILTER_MODE, SAFETY_STRICT) ?: SAFETY_STRICT
+    }
+
+    private fun refreshPermissionStates() {
+        accessibilityEnabled = isAccessibilityServiceEnabled()
+        notificationAccessEnabled = isNotificationListenerEnabled()
+        mediaAccessEnabled = hasMediaPermission()
+        smsPermissionGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED
+        contactsPermissionGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
+        callPermissionGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED
+        locationPermissionGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        recordAudioPermissionGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+        cameraPermissionGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+    }
+
     private fun saveSettings() {
-        val port = parsePort() ?: 8080
-        val apiKey = currentApiKey().orEmpty()
+        val port = portText.toIntOrNull() ?: 8080
         preferences.edit()
             .putInt(PREF_PORT, port)
-            .putString(PREF_API_KEY, apiKey)
+            .putString(PREF_API_KEY, apiKeyText)
             .apply()
     }
 
-    private fun parsePort(): Int? {
-        val value = etPort.text?.toString()?.trim()?.toIntOrNull() ?: return null
-        return value.takeIf { it in 1..65535 }
-    }
-
-    private fun currentApiKey(): String? = etApiKey.text?.toString()
-
-    private fun requestMissingPermissions() {
-        val missing = requiredPermissions().filter { permission ->
-            ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED
-        }
-        if (missing.isNotEmpty()) {
-            ActivityCompat.requestPermissions(
-                this,
-                missing.toTypedArray(),
-                PERMISSION_REQUEST_CODE
-            )
+    private fun requestMediaPermissionIfMissing() {
+        val permission = mediaPermissionForVersion()
+        if (ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED) {
+            refreshPermissionStates()
             return
         }
-
-        if (!isAccessibilityServiceEnabled()) {
-            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-        }
+        requestPermissionLauncher.launch(arrayOf(permission))
     }
 
-    private fun updatePermissionsSummary() {
-        val statusLines = listOf(
-            permissionLine(Manifest.permission.ACCESS_FINE_LOCATION, getString(R.string.permission_location)),
-            permissionLine(Manifest.permission.READ_CONTACTS, getString(R.string.permission_contacts)),
-            permissionLine(Manifest.permission.CAMERA, getString(R.string.permission_camera)),
-            permissionLine(Manifest.permission.RECORD_AUDIO, getString(R.string.permission_microphone)),
-            mediaAudioPermissionLine(),
-            accessibilityStatusLine(),
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                permissionLine(
-                    Manifest.permission.POST_NOTIFICATIONS,
-                    getString(R.string.permission_notifications)
-                )
-            } else {
-                "${getString(R.string.permission_notifications)}: ${getString(R.string.permission_not_required)}"
-            }
-        )
-        tvPermissionSummary.text = statusLines.joinToString("\n")
-    }
-
-    private fun permissionLine(permission: String, label: String): String {
-        val granted = ContextCompat.checkSelfPermission(
-            this,
-            permission
-        ) == PackageManager.PERMISSION_GRANTED
-        val state = if (granted) {
-            getString(R.string.permission_granted)
-        } else {
-            getString(R.string.permission_missing)
-        }
-        return "$label: $state"
-    }
-
-    private fun accessibilityStatusLine(): String {
-        val state = if (isAccessibilityServiceEnabled()) {
-            getString(R.string.permission_enabled_in_settings)
-        } else {
-            getString(R.string.permission_missing_in_settings)
-        }
-        return "${getString(R.string.permission_accessibility)}: $state"
-    }
-
-    private fun mediaAudioPermissionLine(): String {
-        val label = getString(R.string.permission_audio_files)
+    private fun mediaPermissionForVersion(): String {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            permissionLine(Manifest.permission.READ_MEDIA_AUDIO, label)
+            Manifest.permission.READ_MEDIA_AUDIO
         } else {
-            permissionLine(Manifest.permission.READ_EXTERNAL_STORAGE, label)
+            Manifest.permission.READ_EXTERNAL_STORAGE
         }
+    }
+
+    private fun hasMediaPermission(): Boolean {
+        return ContextCompat.checkSelfPermission(
+            this,
+            mediaPermissionForVersion()
+        ) == PackageManager.PERMISSION_GRANTED
     }
 
     private fun isAccessibilityServiceEnabled(): Boolean {
@@ -412,36 +499,31 @@ class MainActivity : AppCompatActivity() {
             contentResolver,
             Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
         ) ?: return false
-        return raw.split(':').any { entry ->
-            entry.equals(expectedComponent, ignoreCase = true)
-        }
+        return raw.split(':').any { it.equals(expectedComponent, ignoreCase = true) }
     }
 
-    private fun requiredPermissions(): List<String> {
-        val permissions = mutableListOf(
-            Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.READ_CONTACTS,
-            Manifest.permission.CAMERA,
-            Manifest.permission.RECORD_AUDIO
-        )
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            permissions += Manifest.permission.READ_MEDIA_AUDIO
-        } else {
-            permissions += Manifest.permission.READ_EXTERNAL_STORAGE
+    private fun isNotificationListenerEnabled(): Boolean {
+        val expectedComponent = "${packageName}/${NotificationListenerService::class.java.name}"
+        val raw = Settings.Secure.getString(
+            contentResolver,
+            "enabled_notification_listeners"
+        ) ?: return false
+        return raw.split(':').any { it.equals(expectedComponent, ignoreCase = true) }
+    }
+
+    private fun addRuntimeLog(message: String, level: LogLevel = LogLevel.INFO) {
+        val timestamp = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"))
+        if (logEvents.size >= 100) {
+            logEvents.removeAt(0)
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            permissions += Manifest.permission.POST_NOTIFICATIONS
-        }
-        return permissions
+        logEvents.add(LogEvent(timestamp, message, level))
     }
 
     private fun generateApiKey(length: Int = 32): String {
         val alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
         val random = SecureRandom()
         return buildString(length) {
-            repeat(length) {
-                append(alphabet[random.nextInt(alphabet.length)])
-            }
+            repeat(length) { append(alphabet[random.nextInt(alphabet.length)]) }
         }
     }
 
@@ -484,18 +566,14 @@ $headersBlock
     }
 
     private fun copyToClipboard(label: String, text: String) {
-        val clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        clipboardManager.setPrimaryClip(ClipData.newPlainText(label, text))
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText(label, text))
     }
 
     private fun resolveStatusText(running: Boolean, statusText: String?): String {
         val normalized = statusText?.trim()?.lowercase()
         return when (normalized) {
-            null, "", "status" -> if (running) {
-                getString(R.string.server_status_running)
-            } else {
-                getString(R.string.server_status_stopped)
-            }
+            null, "", "status" -> if (running) getString(R.string.server_status_running) else getString(R.string.server_status_stopped)
             "running" -> getString(R.string.server_status_running)
             "stopped", "stop", "stopping", "stopped by user" -> getString(R.string.server_status_stopped)
             "starting" -> getString(R.string.server_status_starting)
@@ -504,78 +582,7 @@ $headersBlock
         }
     }
 
-    private fun updatePrimaryButtonText(running: Boolean) {
-        val nextText = if (running) getString(R.string.stop_server) else getString(R.string.start_server)
-        if (btnStartStop.text == nextText) {
-            return
-        }
-        btnStartStop.animate()
-            .alpha(0.4f)
-            .setDuration(90)
-            .withEndAction {
-                btnStartStop.text = nextText
-                btnStartStop.animate().alpha(1f).setDuration(120).start()
-            }
-            .start()
-    }
-
-    private fun animateStatusVisuals(running: Boolean) {
-        val targetColor = ContextCompat.getColor(
-            this,
-            if (running) R.color.status_running_text_color else R.color.status_stopped_text_color
-        )
-        val colorAnimator = ValueAnimator.ofObject(ArgbEvaluator(), tvStatus.currentTextColor, targetColor)
-        colorAnimator.duration = 280
-        colorAnimator.addUpdateListener { animator ->
-            tvStatus.setTextColor(animator.animatedValue as Int)
-        }
-        colorAnimator.start()
-
-        statusIndicator.animate().cancel()
-        statusIndicator.scaleX = 0.88f
-        statusIndicator.scaleY = 0.88f
-        statusIndicator.animate()
-            .scaleX(1f)
-            .scaleY(1f)
-            .setDuration(320)
-            .setInterpolator(OvershootInterpolator(2f))
-            .start()
-
-        animateCardPulse(cardStatus)
-    }
-
-    private fun animateCardPulse(card: View) {
-        card.animate()
-            .scaleX(0.985f)
-            .scaleY(0.985f)
-            .setDuration(90)
-            .withEndAction {
-                card.animate()
-                    .scaleX(1f)
-                    .scaleY(1f)
-                    .setDuration(180)
-                    .setInterpolator(DecelerateInterpolator())
-                    .start()
-            }
-            .start()
-    }
-
-    private fun animateEntrance() {
-        val cards = listOf(cardStatus, cardConfig, cardPermissions, cardQuickConnect, cardUseCases)
-        cards.forEachIndexed { index, card ->
-            card.alpha = 0f
-            card.translationY = 36f
-            card.animate()
-                .alpha(1f)
-                .translationY(0f)
-                .setStartDelay((index * 65).toLong())
-                .setDuration(340)
-                .setInterpolator(DecelerateInterpolator())
-                .start()
-        }
-    }
-
-    private fun getIpAddress(): String {
+    private fun resolveIpAddress(): String {
         return try {
             val interfaces = NetworkInterface.getNetworkInterfaces() ?: return getString(R.string.ip_unknown)
             while (interfaces.hasMoreElements()) {
@@ -596,9 +603,15 @@ $headersBlock
     }
 
     private companion object {
-        const val PREFS_NAME = "pocket_mcp_prefs"
-        const val PREF_PORT = "pref_port"
-        const val PREF_API_KEY = "pref_api_key"
-        const val PERMISSION_REQUEST_CODE = 1001
+        private const val PREFS_NAME = "pocket_mcp_prefs"
+        private const val PREF_PORT = "pref_port"
+        private const val PREF_API_KEY = "pref_api_key"
+        private const val PREF_TAILSCALE_ENABLED = "pref_tailscale_enabled"
+        private const val PREF_DEVELOPER_MODE = "pref_developer_mode"
+        private const val PREF_SAFETY_FILTER_MODE = "pref_safety_filter_mode"
+
+        private const val SAFETY_STRICT = "Strict"
+        private const val SAFETY_BALANCED = "Balanced"
+        private const val SAFETY_OFF = "Off"
     }
 }

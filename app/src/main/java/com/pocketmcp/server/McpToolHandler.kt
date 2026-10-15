@@ -3,9 +3,9 @@ package com.pocketmcp.server
 import android.content.Context
 import kotlinx.serialization.json.JsonObject
 
-interface McpToolHandler {
-    val name: String
-    val description: String
-    val inputSchema: JsonObject
-    suspend fun execute(args: JsonObject?, context: Context): McpToolCallResult
+public interface McpToolHandler {
+    public val name: String
+    public val description: String
+    public val inputSchema: JsonObject
+    public suspend fun execute(args: JsonObject?, context: Context): McpToolCallResult
 }

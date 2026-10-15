@@ -1,95 +1,2233 @@
 {
-  "version": 1,
-  "metadata": {
-    "description": "Comprehensive human intelligence prompts for PocketMCP automation",
-    "total_commands": "2500+",
-    "categories": 15,
-    "expandable": true,
-    "ai_enhanced": true
-  },
-  "human_intelligence_core": {
-    "command_patterns": {
-      "app_launching": {
-        "direct_commands": [
-          "open {app}",
-          "launch {app}",
-          "start {app}",
-          "run {app}"
-        ],
-        "polite_commands": [
-          "please open {app}",
-          "can you open {app}",
-          "would you open {app}"
-        ],
-        "casual_commands": [
-          "let me check {app}",
-          "I wanna use {app}",
-          "time for {app}"
-        ],
-        "urgent_commands": [
-          "open {app} now",
-          "launch {app} immediately",
-          "emergency open {app}"
-        ],
-        "contextual_commands": [
-          "open {app} for {purpose}",
-          "launch {app} to {action}"
-        ]
-      },
-      "messaging": {
-        "send_commands": [
-          "send message to {contact}",
-          "text {contact}",
-          "message {contact}"
-        ],
-        "content_variations": [
-          "tell {contact} that {message}",
-          "let {contact} know {message}"
-        ],
-        "emotional_context": [
-          "comfort {contact} because {reason}",
-          "congratulate {contact} on {achievement}"
-        ]
-      },
-      "searching": {
-        "basic_search": [
-          "search for {query}",
-          "find {query}",
-          "look up {query}"
-        ],
-        "app_specific": ["search {query} on {app}", "find {query} in {app}"],
-        "intent_based": ["search for {query} because I need to {purpose}"]
+  "version": 3,
+  "apps": {
+    "whatsapp": {
+      "description": "WhatsApp Messenger actions",
+      "package_name": "com.whatsapp",
+      "actions": {
+        "send_message": {
+          "description": "Send a text message to a contact",
+          "tool": "send_whatsapp_message",
+          "required_inputs": [
+            "phone_number",
+            "message"
+          ],
+          "allowed_inputs": [
+            "phone_number",
+            "message",
+            "strict_contact_match"
+          ],
+          "defaults": {},
+          "interruptions": [
+            {
+              "trigger_texts": [
+                "allow whatsapp",
+                "allow access",
+                "permissions"
+              ],
+              "dismiss_strategy": "tap_allow",
+              "tap_hints": [
+                "Allow",
+                "Continue",
+                "OK"
+              ]
+            },
+            {
+              "trigger_texts": [
+                "backup",
+                "restore chats"
+              ],
+              "dismiss_strategy": "tap_skip",
+              "tap_hints": [
+                "Skip",
+                "Not now",
+                "Later"
+              ]
+            }
+          ]
+        },
+        "quick_message": {
+          "description": "Send a quick pre-defined message",
+          "tool": "send_whatsapp_message",
+          "required_inputs": [
+            "phone_number"
+          ],
+          "allowed_inputs": [
+            "phone_number",
+            "message"
+          ],
+          "defaults": {
+            "message": "Hey, quick message from PocketMCP!"
+          }
+        },
+        "voice_message": {
+          "description": "Send a voice note to a contact",
+          "tool": "send_whatsapp_message",
+          "required_inputs": [
+            "phone_number"
+          ],
+          "allowed_inputs": [
+            "phone_number",
+            "message",
+            "media_type"
+          ],
+          "defaults": {
+            "media_type": "voice"
+          }
+        }
       }
     },
-    "context_understanding": {
-      "time_expressions": {
-        "morning": ["morning", "am", "sunrise", "breakfast", "dawn", "early"],
-        "afternoon": ["afternoon", "pm", "lunch", "midday", "noon"],
-        "evening": ["evening", "dusk", "dinner", "sunset", "night"],
-        "urgency": ["urgent", "emergency", "asap", "immediately", "critical"]
-      },
-      "emotional_context": {
-        "positive": ["happy", "excited", "great", "wonderful", "amazing"],
-        "negative": ["sad", "angry", "frustrated", "worried", "upset"],
-        "professional": ["professional", "formal", "business", "work"],
-        "casual": ["casual", "informal", "relaxed", "friendly"]
+    "whatsapp_business": {
+      "description": "WhatsApp Business actions",
+      "package_name": "com.whatsapp.w4b",
+      "actions": {
+        "send_message": {
+          "description": "Send a business message to a contact",
+          "tool": "send_whatsapp_business_message",
+          "required_inputs": [
+            "phone_number",
+            "message"
+          ],
+          "allowed_inputs": [
+            "phone_number",
+            "message",
+            "strict_contact_match"
+          ],
+          "defaults": {},
+          "interruptions": [
+            {
+              "trigger_texts": [
+                "allow whatsapp business",
+                "allow access"
+              ],
+              "dismiss_strategy": "tap_allow",
+              "tap_hints": [
+                "Allow",
+                "Continue",
+                "OK"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "instagram": {
+      "description": "Instagram automation actions",
+      "package_name": "com.instagram.android",
+      "actions": {
+        "open_profile": {
+          "description": "Open a user profile",
+          "tool": "social_media",
+          "required_inputs": [
+            "username"
+          ],
+          "allowed_inputs": [
+            "username",
+            "platform"
+          ],
+          "defaults": {
+            "platform": "instagram"
+          },
+          "interruptions": [
+            {
+              "trigger_texts": [
+                "allow instagram",
+                "notifications",
+                "turn on notifications"
+              ],
+              "dismiss_strategy": "tap_deny",
+              "tap_hints": [
+                "Not now",
+                "Skip",
+                "No thanks"
+              ]
+            },
+            {
+              "trigger_texts": [
+                "save login info",
+                "remember password"
+              ],
+              "dismiss_strategy": "tap_deny",
+              "tap_hints": [
+                "Not now",
+                "Skip"
+              ]
+            }
+          ]
+        },
+        "search": {
+          "description": "Search for content on Instagram",
+          "tool": "social_media",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "platform"
+          ],
+          "defaults": {
+            "platform": "instagram"
+          }
+        },
+        "like_post": {
+          "description": "Like a post by URL",
+          "tool": "social_media",
+          "required_inputs": [
+            "post_url"
+          ],
+          "allowed_inputs": [
+            "post_url",
+            "platform",
+            "action"
+          ],
+          "defaults": {
+            "platform": "instagram",
+            "action": "like"
+          }
+        }
+      }
+    },
+    "youtube": {
+      "description": "YouTube automation actions",
+      "package_name": "com.google.android.youtube",
+      "actions": {
+        "search": {
+          "description": "Search for videos on YouTube",
+          "tool": "social_media",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "platform"
+          ],
+          "defaults": {
+            "platform": "youtube"
+          },
+          "interruptions": [
+            {
+              "trigger_texts": [
+                "allow youtube",
+                "send notifications",
+                "turn on notifications"
+              ],
+              "dismiss_strategy": "tap_deny",
+              "tap_hints": [
+                "Don't allow",
+                "Not now",
+                "Skip",
+                "No thanks"
+              ]
+            },
+            {
+              "trigger_texts": [
+                "sign in",
+                "continue with google",
+                "choose an account"
+              ],
+              "dismiss_strategy": "tap_deny",
+              "tap_hints": [
+                "Skip",
+                "Not now",
+                "Cancel",
+                "Dismiss"
+              ]
+            },
+            {
+              "trigger_texts": [
+                "try youtube premium",
+                "youtube premium",
+                "free trial"
+              ],
+              "dismiss_strategy": "tap_deny",
+              "tap_hints": [
+                "No thanks",
+                "Not now",
+                "Skip",
+                "Dismiss"
+              ]
+            }
+          ]
+        },
+        "open_video": {
+          "description": "Open a specific video by ID",
+          "tool": "launch_app",
+          "required_inputs": [
+            "video_id"
+          ],
+          "allowed_inputs": [
+            "video_id"
+          ],
+          "defaults": {
+            "package_name": "com.google.android.youtube"
+          }
+        }
+      }
+    },
+    "tiktok": {
+      "description": "TikTok automation actions",
+      "package_name": "com.zhiliaoapp.musically",
+      "actions": {
+        "search": {
+          "description": "Search for content on TikTok",
+          "tool": "search_screen",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "app_name"
+          ],
+          "defaults": {
+            "app_name": "TikTok"
+          },
+          "interruptions": [
+            {
+              "trigger_texts": [
+                "allow tiktok",
+                "notifications"
+              ],
+              "dismiss_strategy": "tap_deny",
+              "tap_hints": [
+                "Don't allow",
+                "Not now",
+                "Skip"
+              ]
+            },
+            {
+              "trigger_texts": [
+                "sign up",
+                "log in",
+                "continue with"
+              ],
+              "dismiss_strategy": "tap_deny",
+              "tap_hints": [
+                "Skip",
+                "Not now",
+                "Later",
+                "Dismiss"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "x": {
+      "description": "X/Twitter automation actions",
+      "package_name": "com.twitter.android",
+      "actions": {
+        "open_profile": {
+          "description": "Open a user profile on X",
+          "tool": "social_media",
+          "required_inputs": [
+            "username"
+          ],
+          "allowed_inputs": [
+            "username",
+            "platform"
+          ],
+          "defaults": {
+            "platform": "x"
+          }
+        },
+        "search": {
+          "description": "Search on X/Twitter",
+          "tool": "social_media",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "platform"
+          ],
+          "defaults": {
+            "platform": "x"
+          },
+          "interruptions": [
+            {
+              "trigger_texts": [
+                "allow notifications",
+                "stay in the loop"
+              ],
+              "dismiss_strategy": "tap_deny",
+              "tap_hints": [
+                "Not now",
+                "Skip",
+                "No thanks"
+              ]
+            },
+            {
+              "trigger_texts": [
+                "log in",
+                "sign in",
+                "create account"
+              ],
+              "dismiss_strategy": "tap_deny",
+              "tap_hints": [
+                "Cancel",
+                "Close",
+                "Dismiss",
+                "Not now"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "facebook": {
+      "description": "Facebook automation actions",
+      "package_name": "com.facebook.katana",
+      "actions": {
+        "search": {
+          "description": "Search on Facebook",
+          "tool": "search_screen",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "app_name"
+          ],
+          "defaults": {
+            "app_name": "Facebook"
+          },
+          "interruptions": [
+            {
+              "trigger_texts": [
+                "allow facebook",
+                "notifications"
+              ],
+              "dismiss_strategy": "tap_deny",
+              "tap_hints": [
+                "Not now",
+                "Skip",
+                "No thanks"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "snapchat": {
+      "description": "Snapchat automation actions",
+      "package_name": "com.snapchat.android",
+      "actions": {
+        "search": {
+          "description": "Search on Snapchat",
+          "tool": "search_screen",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "app_name"
+          ],
+          "defaults": {
+            "app_name": "Snapchat"
+          }
+        }
+      }
+    },
+    "telegram": {
+      "description": "Telegram automation actions",
+      "package_name": "org.telegram.messenger",
+      "actions": {
+        "send_message": {
+          "description": "Send a message on Telegram",
+          "tool": "send_message",
+          "required_inputs": [
+            "phone_number",
+            "message"
+          ],
+          "allowed_inputs": [
+            "phone_number",
+            "message",
+            "app"
+          ],
+          "defaults": {
+            "app": "telegram"
+          }
+        },
+        "search": {
+          "description": "Search on Telegram",
+          "tool": "search_screen",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "app_name"
+          ],
+          "defaults": {
+            "app_name": "Telegram"
+          }
+        }
+      }
+    },
+    "signal": {
+      "description": "Signal messenger actions",
+      "package_name": "org.thoughtcrime.securesms",
+      "actions": {
+        "send_message": {
+          "description": "Send a message on Signal",
+          "tool": "send_message",
+          "required_inputs": [
+            "phone_number",
+            "message"
+          ],
+          "allowed_inputs": [
+            "phone_number",
+            "message",
+            "app"
+          ],
+          "defaults": {
+            "app": "signal"
+          }
+        }
+      }
+    },
+    "discord": {
+      "description": "Discord automation actions",
+      "package_name": "com.discord",
+      "actions": {
+        "search": {
+          "description": "Search on Discord",
+          "tool": "search_screen",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "app_name"
+          ],
+          "defaults": {
+            "app_name": "Discord"
+          },
+          "interruptions": [
+            {
+              "trigger_texts": [
+                "allow discord",
+                "notifications"
+              ],
+              "dismiss_strategy": "tap_deny",
+              "tap_hints": [
+                "Not now",
+                "Skip",
+                "No thanks"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "messenger": {
+      "description": "Facebook Messenger actions",
+      "package_name": "com.facebook.orca",
+      "actions": {
+        "send_message": {
+          "description": "Send a message on Messenger",
+          "tool": "send_message",
+          "required_inputs": [
+            "phone_number",
+            "message"
+          ],
+          "allowed_inputs": [
+            "phone_number",
+            "message",
+            "app"
+          ],
+          "defaults": {
+            "app": "messenger"
+          }
+        }
+      }
+    },
+    "linkedin": {
+      "description": "LinkedIn automation actions",
+      "package_name": "com.linkedin.android",
+      "actions": {
+        "search": {
+          "description": "Search on LinkedIn",
+          "tool": "search_screen",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "app_name"
+          ],
+          "defaults": {
+            "app_name": "LinkedIn"
+          },
+          "interruptions": [
+            {
+              "trigger_texts": [
+                "allow linkedin",
+                "notifications"
+              ],
+              "dismiss_strategy": "tap_deny",
+              "tap_hints": [
+                "Not now",
+                "Skip",
+                "No thanks"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "reddit": {
+      "description": "Reddit automation actions",
+      "package_name": "com.reddit.frontpage",
+      "actions": {
+        "search": {
+          "description": "Search on Reddit",
+          "tool": "search_screen",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "app_name"
+          ],
+          "defaults": {
+            "app_name": "Reddit"
+          },
+          "interruptions": [
+            {
+              "trigger_texts": [
+                "allow reddit",
+                "notifications"
+              ],
+              "dismiss_strategy": "tap_deny",
+              "tap_hints": [
+                "Not now",
+                "Skip",
+                "No thanks"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "pinterest": {
+      "description": "Pinterest automation actions",
+      "package_name": "com.pinterest",
+      "actions": {
+        "search": {
+          "description": "Search on Pinterest",
+          "tool": "search_screen",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "app_name"
+          ],
+          "defaults": {
+            "app_name": "Pinterest"
+          }
+        }
+      }
+    },
+    "twitch": {
+      "description": "Twitch automation actions",
+      "package_name": "tv.twitch.android.app",
+      "actions": {
+        "search": {
+          "description": "Search on Twitch",
+          "tool": "search_screen",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "app_name"
+          ],
+          "defaults": {
+            "app_name": "Twitch"
+          }
+        }
+      }
+    },
+    "spotify": {
+      "description": "Spotify automation actions",
+      "package_name": "com.spotify.music",
+      "actions": {
+        "search": {
+          "description": "Search for music on Spotify",
+          "tool": "search_screen",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "app_name"
+          ],
+          "defaults": {
+            "app_name": "Spotify"
+          },
+          "interruptions": [
+            {
+              "trigger_texts": [
+                "allow spotify",
+                "notifications"
+              ],
+              "dismiss_strategy": "tap_deny",
+              "tap_hints": [
+                "Not now",
+                "Skip",
+                "No thanks"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "netflix": {
+      "description": "Netflix automation actions",
+      "package_name": "com.netflix.mediaclient",
+      "actions": {
+        "search": {
+          "description": "Search on Netflix",
+          "tool": "search_screen",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "app_name"
+          ],
+          "defaults": {
+            "app_name": "Netflix"
+          }
+        }
+      }
+    },
+    "amazon_prime_video": {
+      "description": "Amazon Prime Video actions",
+      "package_name": "com.amazon.avod.thirdpartyclient",
+      "actions": {
+        "search": {
+          "description": "Search on Prime Video",
+          "tool": "search_screen",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "app_name"
+          ],
+          "defaults": {
+            "app_name": "Prime Video"
+          }
+        }
+      }
+    },
+    "chrome": {
+      "description": "Google Chrome browser actions",
+      "package_name": "com.android.chrome",
+      "actions": {
+        "search": {
+          "description": "Search or browse in Chrome",
+          "tool": "search_screen",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "app_name"
+          ],
+          "defaults": {
+            "app_name": "Chrome"
+          },
+          "interruptions": [
+            {
+              "trigger_texts": [
+                "turn on sync",
+                "sign in to chrome"
+              ],
+              "dismiss_strategy": "tap_deny",
+              "tap_hints": [
+                "No thanks",
+                "Not now",
+                "Skip"
+              ]
+            }
+          ]
+        },
+        "open_url": {
+          "description": "Open a specific URL in Chrome",
+          "tool": "http_request",
+          "required_inputs": [
+            "url"
+          ],
+          "allowed_inputs": [
+            "url",
+            "method"
+          ],
+          "defaults": {
+            "method": "GET"
+          }
+        }
+      }
+    },
+    "firefox": {
+      "description": "Firefox browser actions",
+      "package_name": "org.mozilla.firefox",
+      "actions": {
+        "search": {
+          "description": "Search or browse in Firefox",
+          "tool": "search_screen",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "app_name"
+          ],
+          "defaults": {
+            "app_name": "Firefox"
+          }
+        }
+      }
+    },
+    "gmail": {
+      "description": "Gmail automation actions",
+      "package_name": "com.google.android.gm",
+      "actions": {
+        "search": {
+          "description": "Search emails in Gmail",
+          "tool": "search_screen",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "app_name"
+          ],
+          "defaults": {
+            "app_name": "Gmail"
+          }
+        }
+      }
+    },
+    "google_maps": {
+      "description": "Google Maps actions",
+      "package_name": "com.google.android.apps.maps",
+      "actions": {
+        "search": {
+          "description": "Search locations on Google Maps",
+          "tool": "search_screen",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "app_name"
+          ],
+          "defaults": {
+            "app_name": "Maps"
+          }
+        },
+        "get_directions": {
+          "description": "Get directions to a location",
+          "tool": "search_screen",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "app_name"
+          ],
+          "defaults": {
+            "app_name": "Maps"
+          }
+        }
+      }
+    },
+    "uber": {
+      "description": "Uber automation actions",
+      "package_name": "com.ubercab",
+      "actions": {
+        "search": {
+          "description": "Search for rides on Uber",
+          "tool": "search_screen",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "app_name"
+          ],
+          "defaults": {
+            "app_name": "Uber"
+          }
+        }
+      }
+    },
+    "lyft": {
+      "description": "Lyft automation actions",
+      "package_name": "me.lyft.android",
+      "actions": {
+        "search": {
+          "description": "Search for rides on Lyft",
+          "tool": "search_screen",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "app_name"
+          ],
+          "defaults": {
+            "app_name": "Lyft"
+          }
+        }
+      }
+    },
+    "amazon": {
+      "description": "Amazon shopping actions",
+      "package_name": "com.amazon.mShop.android.shopping",
+      "actions": {
+        "search": {
+          "description": "Search products on Amazon",
+          "tool": "search_screen",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "app_name"
+          ],
+          "defaults": {
+            "app_name": "Amazon"
+          }
+        }
+      }
+    },
+    "ebay": {
+      "description": "eBay shopping actions",
+      "package_name": "com.ebay.mobile",
+      "actions": {
+        "search": {
+          "description": "Search products on eBay",
+          "tool": "search_screen",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "app_name"
+          ],
+          "defaults": {
+            "app_name": "eBay"
+          }
+        }
+      }
+    },
+    "aliexpress": {
+      "description": "AliExpress shopping actions",
+      "package_name": "com.alibaba.aliexpresshd",
+      "actions": {
+        "search": {
+          "description": "Search products on AliExpress",
+          "tool": "search_screen",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "app_name"
+          ],
+          "defaults": {
+            "app_name": "AliExpress"
+          }
+        }
+      }
+    },
+    "zoom": {
+      "description": "Zoom video conferencing actions",
+      "package_name": "us.zoom.videomeetings",
+      "actions": {
+        "join_meeting": {
+          "description": "Join a Zoom meeting",
+          "tool": "launch_app",
+          "required_inputs": [
+            "meeting_id"
+          ],
+          "allowed_inputs": [
+            "meeting_id",
+            "package_name"
+          ],
+          "defaults": {
+            "package_name": "us.zoom.videomeetings"
+          }
+        }
+      }
+    },
+    "teams": {
+      "description": "Microsoft Teams actions",
+      "package_name": "com.microsoft.teams",
+      "actions": {
+        "search": {
+          "description": "Search in Microsoft Teams",
+          "tool": "search_screen",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "app_name"
+          ],
+          "defaults": {
+            "app_name": "Teams"
+          }
+        }
+      }
+    },
+    "slack": {
+      "description": "Slack automation actions",
+      "package_name": "com.Slack",
+      "actions": {
+        "search": {
+          "description": "Search in Slack",
+          "tool": "search_screen",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "app_name"
+          ],
+          "defaults": {
+            "app_name": "Slack"
+          }
+        }
+      }
+    },
+    "notion": {
+      "description": "Notion workspace actions",
+      "package_name": "notion.id",
+      "actions": {
+        "search": {
+          "description": "Search in Notion",
+          "tool": "search_screen",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "app_name"
+          ],
+          "defaults": {
+            "app_name": "Notion"
+          }
+        }
+      }
+    },
+    "todoist": {
+      "description": "Todoist task management actions",
+      "package_name": "com.todoist",
+      "actions": {
+        "search": {
+          "description": "Search tasks in Todoist",
+          "tool": "search_screen",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "app_name"
+          ],
+          "defaults": {
+            "app_name": "Todoist"
+          }
+        }
+      }
+    },
+    "evernote": {
+      "description": "Evernote note-taking actions",
+      "package_name": "com.evernote",
+      "actions": {
+        "search": {
+          "description": "Search notes in Evernote",
+          "tool": "search_screen",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "app_name"
+          ],
+          "defaults": {
+            "app_name": "Evernote"
+          }
+        }
+      }
+    },
+    "google_drive": {
+      "description": "Google Drive actions",
+      "package_name": "com.google.android.apps.docs",
+      "actions": {
+        "search": {
+          "description": "Search files in Google Drive",
+          "tool": "search_screen",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "app_name"
+          ],
+          "defaults": {
+            "app_name": "Drive"
+          }
+        }
+      }
+    },
+    "dropbox": {
+      "description": "Dropbox actions",
+      "package_name": "com.dropbox.android",
+      "actions": {
+        "search": {
+          "description": "Search files in Dropbox",
+          "tool": "search_screen",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "app_name"
+          ],
+          "defaults": {
+            "app_name": "Dropbox"
+          }
+        }
+      }
+    },
+    "duolingo": {
+      "description": "Duolingo language learning actions",
+      "package_name": "com.duolingo",
+      "actions": {
+        "search": {
+          "description": "Search in Duolingo",
+          "tool": "search_screen",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "app_name"
+          ],
+          "defaults": {
+            "app_name": "Duolingo"
+          }
+        }
+      }
+    },
+    "play_store": {
+      "description": "Google Play Store actions",
+      "package_name": "com.android.vending",
+      "actions": {
+        "search_app": {
+          "description": "Search for an app in Play Store",
+          "tool": "search_screen",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "app_name"
+          ],
+          "defaults": {
+            "app_name": "Play Store"
+          }
+        },
+        "install_app": {
+          "description": "Open Play Store app page for installation",
+          "tool": "launch_app",
+          "required_inputs": [
+            "package_name"
+          ],
+          "allowed_inputs": [
+            "package_name",
+            "action"
+          ],
+          "defaults": {
+            "action": "open"
+          }
+        }
+      }
+    },
+    "google_photos": {
+      "description": "Google Photos actions",
+      "package_name": "com.google.android.apps.photos",
+      "actions": {
+        "search": {
+          "description": "Search photos in Google Photos",
+          "tool": "search_screen",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "app_name"
+          ],
+          "defaults": {
+            "app_name": "Photos"
+          }
+        }
+      }
+    },
+    "calculator": {
+      "description": "Calculator actions",
+      "package_name": "com.google.android.calculator",
+      "actions": {
+        "calculate": {
+          "description": "Open calculator",
+          "tool": "launch_app",
+          "required_inputs": [],
+          "allowed_inputs": [
+            "app_name",
+            "action"
+          ],
+          "defaults": {
+            "app_name": "Calculator",
+            "action": "open"
+          }
+        }
+      }
+    },
+    "calendar": {
+      "description": "Google Calendar actions",
+      "package_name": "com.google.android.calendar",
+      "actions": {
+        "search": {
+          "description": "Search events in Calendar",
+          "tool": "search_screen",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "app_name"
+          ],
+          "defaults": {
+            "app_name": "Calendar"
+          }
+        }
+      }
+    },
+    "contacts": {
+      "description": "Contacts app actions",
+      "package_name": "com.google.android.contacts",
+      "actions": {
+        "search": {
+          "description": "Search contacts",
+          "tool": "search_screen",
+          "required_inputs": [
+            "query"
+          ],
+          "allowed_inputs": [
+            "query",
+            "app_name"
+          ],
+          "defaults": {
+            "app_name": "Contacts"
+          }
+        }
+      }
+    },
+    "phone": {
+      "description": "Phone dialer actions",
+      "package_name": "com.google.android.dialer",
+      "actions": {
+        "call": {
+          "description": "Make a phone call",
+          "tool": "make_call",
+          "required_inputs": [
+            "phone_number"
+          ],
+          "allowed_inputs": [
+            "phone_number",
+            "contact_name"
+          ],
+          "defaults": {}
+        }
+      }
+    },
+    "settings": {
+      "description": "System Settings actions",
+      "package_name": "com.android.settings",
+      "actions": {
+        "open": {
+          "description": "Open system settings",
+          "tool": "launch_app",
+          "required_inputs": [],
+          "allowed_inputs": [
+            "app_name",
+            "action"
+          ],
+          "defaults": {
+            "app_name": "Settings",
+            "action": "open"
+          }
+        }
+      }
+    },
+    "messaging": {
+      "description": "Generic messaging actions",
+      "actions": {
+        "send_sms": {
+          "description": "Send an SMS message",
+          "tool": "send_message",
+          "required_inputs": [
+            "phone_number",
+            "message"
+          ],
+          "allowed_inputs": [
+            "phone_number",
+            "message",
+            "app"
+          ],
+          "defaults": {
+            "app": "sms"
+          }
+        }
+      }
+    },
+    "system": {
+      "description": "System-level actions",
+      "actions": {
+        "launch_app": {
+          "description": "Launch any installed app",
+          "tool": "launch_app",
+          "required_inputs": [
+            "app_name"
+          ],
+          "allowed_inputs": [
+            "app_name",
+            "package_name"
+          ],
+          "defaults": {}
+        },
+        "flashlight_on": {
+          "description": "Turn on the flashlight",
+          "tool": "flashlight",
+          "required_inputs": [],
+          "allowed_inputs": [
+            "state"
+          ],
+          "defaults": {
+            "state": "on"
+          }
+        },
+        "flashlight_off": {
+          "description": "Turn off the flashlight",
+          "tool": "flashlight",
+          "required_inputs": [],
+          "allowed_inputs": [
+            "state"
+          ],
+          "defaults": {
+            "state": "off"
+          }
+        },
+        "volume_up": {
+          "description": "Increase media volume",
+          "tool": "volume_control",
+          "required_inputs": [],
+          "allowed_inputs": [
+            "stream",
+            "level",
+            "adjustment"
+          ],
+          "defaults": {
+            "stream": "media",
+            "adjustment": "up"
+          }
+        },
+        "volume_down": {
+          "description": "Decrease media volume",
+          "tool": "volume_control",
+          "required_inputs": [],
+          "allowed_inputs": [
+            "stream",
+            "level",
+            "adjustment"
+          ],
+          "defaults": {
+            "stream": "media",
+            "adjustment": "down"
+          }
+        }
+      }
+    },
+    "voice": {
+      "description": "Voice and transcription actions",
+      "actions": {
+        "record": {
+          "description": "Record audio from microphone",
+          "tool": "voice_record",
+          "required_inputs": [],
+          "allowed_inputs": [
+            "duration_seconds"
+          ],
+          "defaults": {}
+        },
+        "transcribe_latest": {
+          "description": "Transcribe the latest WhatsApp voice note",
+          "tool": "transcribe_whatsapp_audio",
+          "required_inputs": [],
+          "allowed_inputs": [],
+          "defaults": {}
+        }
       }
     }
   },
-  "smart_workflows": {
-    "daily_routines": {
-      "morning_setup": {
-        "triggers": ["good morning", "start my day", "morning routine"],
-        "steps": ["weather", "calendar", "news", "email", "notifications"]
+  "interruption_catalog": {
+    "description": "Known interruption dialogs and dismissal strategies across Android apps",
+    "global_patterns": [
+      {
+        "id": "notification_permission",
+        "trigger_texts": [
+          "allow",
+          "notifications",
+          "send you notifications",
+          "turn on notifications",
+          "stay in the loop"
+        ],
+        "dismiss_strategy": "tap_deny",
+        "tap_hints": [
+          "Don't allow",
+          "Not now",
+          "Skip",
+          "No thanks",
+          "Cancel",
+          "Dismiss"
+        ],
+        "priority": 1,
+        "note": "Most apps ask for notification permission on first open"
       },
-      "work_mode": {
-        "triggers": ["work mode", "focus time", "do not disturb"],
-        "steps": [
-          "volume_control",
-          "notifications_filter",
-          "email",
-          "calendar",
-          "tasks"
+      {
+        "id": "location_permission",
+        "trigger_texts": [
+          "allow",
+          "location",
+          "access your location",
+          "while using the app",
+          "all the time"
+        ],
+        "dismiss_strategy": "tap_allow_precise",
+        "tap_hints": [
+          "While using the app",
+          "Only this time",
+          "Allow"
+        ],
+        "priority": 1,
+        "note": "Location permission is often required for functionality"
+      },
+      {
+        "id": "storage_permission",
+        "trigger_texts": [
+          "allow",
+          "photos",
+          "media",
+          "files",
+          "access photos and media"
+        ],
+        "dismiss_strategy": "tap_allow",
+        "tap_hints": [
+          "Allow",
+          "Allow access",
+          "OK"
+        ],
+        "priority": 2
+      },
+      {
+        "id": "camera_permission",
+        "trigger_texts": [
+          "allow",
+          "camera",
+          "take pictures",
+          "record video"
+        ],
+        "dismiss_strategy": "tap_allow",
+        "tap_hints": [
+          "Allow",
+          "Allow while using",
+          "OK"
+        ],
+        "priority": 2
+      },
+      {
+        "id": "microphone_permission",
+        "trigger_texts": [
+          "allow",
+          "microphone",
+          "record audio"
+        ],
+        "dismiss_strategy": "tap_allow",
+        "tap_hints": [
+          "Allow",
+          "Allow while using",
+          "OK"
+        ],
+        "priority": 2
+      },
+      {
+        "id": "contacts_permission",
+        "trigger_texts": [
+          "allow",
+          "contacts",
+          "access your contacts"
+        ],
+        "dismiss_strategy": "tap_allow",
+        "tap_hints": [
+          "Allow",
+          "OK"
+        ],
+        "priority": 2
+      },
+      {
+        "id": "phone_permission",
+        "trigger_texts": [
+          "allow",
+          "phone",
+          "make and manage phone calls"
+        ],
+        "dismiss_strategy": "tap_allow",
+        "tap_hints": [
+          "Allow",
+          "OK"
+        ],
+        "priority": 2
+      },
+      {
+        "id": "system_update",
+        "trigger_texts": [
+          "software update",
+          "system update available",
+          "update now"
+        ],
+        "dismiss_strategy": "tap_deny",
+        "tap_hints": [
+          "Later",
+          "Remind me later",
+          "Not now",
+          "Dismiss"
+        ],
+        "priority": 3,
+        "note": "Non-blocking, can dismiss safely"
+      },
+      {
+        "id": "low_battery",
+        "trigger_texts": [
+          "battery saver",
+          "low battery",
+          "turn on battery saver"
+        ],
+        "dismiss_strategy": "tap_deny",
+        "tap_hints": [
+          "Cancel",
+          "No thanks",
+          "Dismiss"
+        ],
+        "priority": 3
+      },
+      {
+        "id": "vpn_connection",
+        "trigger_texts": [
+          "vpn",
+          "connection request",
+          " wants to set up a vpn"
+        ],
+        "dismiss_strategy": "tap_allow",
+        "tap_hints": [
+          "OK",
+          "Allow"
+        ],
+        "priority": 1,
+        "note": "VPN dialogs are system-level and block interaction"
+      },
+      {
+        "id": "accessibility_service",
+        "trigger_texts": [
+          "accessibility",
+          "enable accessibility",
+          "accessibility service"
+        ],
+        "dismiss_strategy": "tap_allow",
+        "tap_hints": [
+          "OK",
+          "Allow",
+          "Turn on"
+        ],
+        "priority": 1
+      },
+      {
+        "id": "rating_prompt",
+        "trigger_texts": [
+          "rate us",
+          "enjoying",
+          "how would you rate",
+          "leave a review"
+        ],
+        "dismiss_strategy": "tap_deny",
+        "tap_hints": [
+          "Not now",
+          "Maybe later",
+          "No thanks",
+          "Dismiss",
+          "Close"
+        ],
+        "priority": 3
+      },
+      {
+        "id": "premium_upgrade",
+        "trigger_texts": [
+          "premium",
+          "upgrade",
+          "free trial",
+          "try premium",
+          "subscribe",
+          "pro version"
+        ],
+        "dismiss_strategy": "tap_deny",
+        "tap_hints": [
+          "No thanks",
+          "Not now",
+          "Skip",
+          "Dismiss",
+          "Maybe later",
+          "Close"
+        ],
+        "priority": 2,
+        "note": "Paywall popups are common on media and productivity apps"
+      },
+      {
+        "id": "sign_in_prompt",
+        "trigger_texts": [
+          "sign in",
+          "log in",
+          "continue with google",
+          "continue with facebook",
+          "create account",
+          "choose an account"
+        ],
+        "dismiss_strategy": "tap_deny",
+        "tap_hints": [
+          "Skip",
+          "Not now",
+          "Later",
+          "Dismiss",
+          "Cancel",
+          "No thanks"
+        ],
+        "priority": 2,
+        "note": "Guest/skip is often available for content apps"
+      },
+      {
+        "id": "backup_prompt",
+        "trigger_texts": [
+          "backup",
+          "restore",
+          "restore chats",
+          "backup to google drive"
+        ],
+        "dismiss_strategy": "tap_skip",
+        "tap_hints": [
+          "Skip",
+          "Not now",
+          "Later",
+          "No"
+        ],
+        "priority": 2
+      },
+      {
+        "id": "sync_prompt",
+        "trigger_texts": [
+          "sync",
+          "turn on sync",
+          "sign in to chrome",
+          "sync your data"
+        ],
+        "dismiss_strategy": "tap_deny",
+        "tap_hints": [
+          "No thanks",
+          "Not now",
+          "Skip"
+        ],
+        "priority": 2
+      },
+      {
+        "id": "wifi_calling",
+        "trigger_texts": [
+          "wi-fi calling",
+          "wifi calling",
+          "enable wifi calling"
+        ],
+        "dismiss_strategy": "tap_deny",
+        "tap_hints": [
+          "Not now",
+          "Later",
+          "No thanks"
+        ],
+        "priority": 3
+      },
+      {
+        "id": "emergency_alert",
+        "trigger_texts": [
+          "emergency alert",
+          "amber alert",
+          "emergency broadcast"
+        ],
+        "dismiss_strategy": "tap_dismiss",
+        "tap_hints": [
+          "OK",
+          "Dismiss",
+          "Close"
+        ],
+        "priority": 0,
+        "note": "Highest priority - system emergency alerts"
+      }
+    ]
+  },
+  "install_catalog": {
+    "description": "App installation fallback strategies when an app is not installed",
+    "play_store_uri_template": "market://details?id={package_name}",
+    "web_fallback_template": "https://play.google.com/store/apps/details?id={package_name}",
+    "search_fallback_template": "https://play.google.com/store/search?q={app_name}&c=apps",
+    "install_flow": {
+      "steps": [
+        {
+          "step": "check_installed",
+          "tool": "list_apps",
+          "note": "Verify app is not installed"
+        },
+        {
+          "step": "open_play_store",
+          "tool": "launch_app",
+          "args": {
+            "app_name": "Play Store",
+            "package_name": "com.android.vending"
+          }
+        },
+        {
+          "step": "search_app",
+          "tool": "search_screen",
+          "args": {
+            "app_name": "Play Store",
+            "query": "{app_name}",
+            "close_popups": true,
+            "submit": true
+          }
+        },
+        {
+          "step": "tap_install",
+          "tool": "tap",
+          "args": {
+            "text": "Install"
+          }
+        },
+        {
+          "step": "wait_install",
+          "tool": "shell",
+          "args": {
+            "command": "pm list packages | grep {package_name}",
+            "timeout_seconds": 120
+          },
+          "retry": 10,
+          "retry_interval_seconds": 15
+        },
+        {
+          "step": "open_app",
+          "tool": "launch_app",
+          "args": {
+            "package_name": "{package_name}"
+          }
+        }
+      ]
+    },
+    "apps": {
+      "instagram": {
+        "play_store_id": "com.instagram.android",
+        "aliases": [
+          "insta",
+          "ig"
+        ]
+      },
+      "youtube": {
+        "play_store_id": "com.google.android.youtube",
+        "aliases": [
+          "yt"
+        ]
+      },
+      "tiktok": {
+        "play_store_id": "com.zhiliaoapp.musically",
+        "aliases": [
+          "tik tok"
+        ]
+      },
+      "x": {
+        "play_store_id": "com.twitter.android",
+        "aliases": [
+          "twitter",
+          "tweet"
+        ]
+      },
+      "facebook": {
+        "play_store_id": "com.facebook.katana",
+        "aliases": [
+          "fb"
+        ]
+      },
+      "snapchat": {
+        "play_store_id": "com.snapchat.android",
+        "aliases": []
+      },
+      "telegram": {
+        "play_store_id": "org.telegram.messenger",
+        "aliases": [
+          "tg"
+        ]
+      },
+      "signal": {
+        "play_store_id": "org.thoughtcrime.securesms",
+        "aliases": []
+      },
+      "discord": {
+        "play_store_id": "com.discord",
+        "aliases": []
+      },
+      "messenger": {
+        "play_store_id": "com.facebook.orca",
+        "aliases": [
+          "fb messenger"
+        ]
+      },
+      "linkedin": {
+        "play_store_id": "com.linkedin.android",
+        "aliases": []
+      },
+      "reddit": {
+        "play_store_id": "com.reddit.frontpage",
+        "aliases": []
+      },
+      "pinterest": {
+        "play_store_id": "com.pinterest",
+        "aliases": []
+      },
+      "twitch": {
+        "play_store_id": "tv.twitch.android.app",
+        "aliases": []
+      },
+      "spotify": {
+        "play_store_id": "com.spotify.music",
+        "aliases": []
+      },
+      "netflix": {
+        "play_store_id": "com.netflix.mediaclient",
+        "aliases": []
+      },
+      "amazon_prime_video": {
+        "play_store_id": "com.amazon.avod.thirdpartyclient",
+        "aliases": [
+          "prime video"
+        ]
+      },
+      "chrome": {
+        "play_store_id": "com.android.chrome",
+        "aliases": [
+          "google chrome",
+          "browser"
+        ]
+      },
+      "firefox": {
+        "play_store_id": "org.mozilla.firefox",
+        "aliases": []
+      },
+      "gmail": {
+        "play_store_id": "com.google.android.gm",
+        "aliases": [
+          "google mail",
+          "email"
+        ]
+      },
+      "google_maps": {
+        "play_store_id": "com.google.android.apps.maps",
+        "aliases": [
+          "maps",
+          "google maps"
+        ]
+      },
+      "uber": {
+        "play_store_id": "com.ubercab",
+        "aliases": []
+      },
+      "lyft": {
+        "play_store_id": "me.lyft.android",
+        "aliases": []
+      },
+      "amazon": {
+        "play_store_id": "com.amazon.mShop.android.shopping",
+        "aliases": [
+          "amazon shopping"
+        ]
+      },
+      "ebay": {
+        "play_store_id": "com.ebay.mobile",
+        "aliases": []
+      },
+      "aliexpress": {
+        "play_store_id": "com.alibaba.aliexpresshd",
+        "aliases": []
+      },
+      "zoom": {
+        "play_store_id": "us.zoom.videomeetings",
+        "aliases": []
+      },
+      "teams": {
+        "play_store_id": "com.microsoft.teams",
+        "aliases": [
+          "microsoft teams"
+        ]
+      },
+      "slack": {
+        "play_store_id": "com.Slack",
+        "aliases": []
+      },
+      "notion": {
+        "play_store_id": "notion.id",
+        "aliases": []
+      },
+      "todoist": {
+        "play_store_id": "com.todoist",
+        "aliases": []
+      },
+      "evernote": {
+        "play_store_id": "com.evernote",
+        "aliases": []
+      },
+      "google_drive": {
+        "play_store_id": "com.google.android.apps.docs",
+        "aliases": [
+          "drive",
+          "google drive"
+        ]
+      },
+      "dropbox": {
+        "play_store_id": "com.dropbox.android",
+        "aliases": []
+      },
+      "duolingo": {
+        "play_store_id": "com.duolingo",
+        "aliases": []
+      },
+      "google_photos": {
+        "play_store_id": "com.google.android.apps.photos",
+        "aliases": [
+          "photos",
+          "google photos"
+        ]
+      },
+      "calculator": {
+        "play_store_id": "com.google.android.calculator",
+        "aliases": [
+          "calc"
+        ]
+      },
+      "calendar": {
+        "play_store_id": "com.google.android.calendar",
+        "aliases": [
+          "google calendar"
+        ]
+      },
+      "contacts": {
+        "play_store_id": "com.google.android.contacts",
+        "aliases": []
+      },
+      "phone": {
+        "play_store_id": "com.google.android.dialer",
+        "aliases": [
+          "dialer",
+          "call"
+        ]
+      },
+      "settings": {
+        "play_store_id": "com.android.settings",
+        "aliases": [
+          "system settings"
+        ]
+      }
+    }
+  },
+  "human_intent_patterns": {
+    "description": "Natural language command patterns and their mapping to preset actions",
+    "patterns": [
+      {
+        "aliases": [
+          "install",
+          "get",
+          "download",
+          "add"
+        ],
+        "action": "install_app",
+        "requires_play_store": true
+      },
+      {
+        "aliases": [
+          "open",
+          "launch",
+          "start",
+          "run",
+          "go to"
+        ],
+        "action": "launch_app"
+      },
+      {
+        "aliases": [
+          "search",
+          "find",
+          "look up",
+          "lookup",
+          "look for"
+        ],
+        "action": "search"
+      },
+      {
+        "aliases": [
+          "send message",
+          "text",
+          "msg",
+          "message",
+          "tell",
+          "ask"
+        ],
+        "action": "send_message"
+      },
+      {
+        "aliases": [
+          "call",
+          "dial",
+          "ring",
+          "phone"
+        ],
+        "action": "make_call"
+      },
+      {
+        "aliases": [
+          "scroll",
+          "swipe"
+        ],
+        "action": "scroll_screen"
+      },
+      {
+        "aliases": [
+          "tap",
+          "click",
+          "press"
+        ],
+        "action": "tap"
+      },
+      {
+        "aliases": [
+          "screenshot",
+          "screen shot",
+          "capture"
+        ],
+        "action": "take_screenshot"
+      },
+      {
+        "aliases": [
+          "volume up",
+          "louder",
+          "increase volume"
+        ],
+        "action": "volume_up"
+      },
+      {
+        "aliases": [
+          "volume down",
+          "quieter",
+          "decrease volume"
+        ],
+        "action": "volume_down"
+      },
+      {
+        "aliases": [
+          "mute",
+          "silent"
+        ],
+        "action": "mute"
+      },
+      {
+        "aliases": [
+          "flashlight on",
+          "torch on",
+          "turn on light"
+        ],
+        "action": "flashlight_on"
+      },
+      {
+        "aliases": [
+          "flashlight off",
+          "torch off",
+          "turn off light"
+        ],
+        "action": "flashlight_off"
+      },
+      {
+        "aliases": [
+          "go home",
+          "home button",
+          "press home"
+        ],
+        "action": "global_action_home"
+      },
+      {
+        "aliases": [
+          "go back",
+          "back button",
+          "press back"
+        ],
+        "action": "global_action_back"
+      },
+      {
+        "aliases": [
+          "recent apps",
+          "app switcher",
+          "recents"
+        ],
+        "action": "global_action_recents"
+      },
+      {
+        "aliases": [
+          "lock screen",
+          "lock phone",
+          "turn off screen"
+        ],
+        "action": "global_action_lock"
+      }
+    ]
+  },
+  "navigation_templates": {
+    "description": "Common UI navigation patterns for reactive screen recovery",
+    "dismissal_strategies": {
+      "tap_allow": {
+        "description": "Tap an affirmative button to proceed",
+        "fallback_hints": [
+          "Allow",
+          "Continue",
+          "OK",
+          "Yes",
+          "Accept",
+          "Enable",
+          "Turn on",
+          "Got it"
+        ]
+      },
+      "tap_deny": {
+        "description": "Tap a negative/dismiss button to skip",
+        "fallback_hints": [
+          "Don't allow",
+          "Not now",
+          "Skip",
+          "No thanks",
+          "Cancel",
+          "Dismiss",
+          "Close",
+          "Later",
+          "Maybe later",
+          "No"
+        ]
+      },
+      "tap_skip": {
+        "description": "Tap skip to bypass optional setup",
+        "fallback_hints": [
+          "Skip",
+          "Skip for now",
+          "Not now",
+          "Later",
+          "Maybe later"
+        ]
+      },
+      "tap_back": {
+        "description": "Use system back gesture to dismiss dialog",
+        "tool": "global_action",
+        "args": {
+          "action": "back"
+        }
+      },
+      "tap_outside": {
+        "description": "Tap outside dialog bounds to dismiss",
+        "tool": "tap",
+        "args": {
+          "x": 100,
+          "y": 100
+        }
+      }
+    },
+    "app_first_launch_patterns": {
+      "youtube": {
+        "expected_popups": [
+          "notification_permission",
+          "sign_in_prompt",
+          "premium_upgrade"
+        ],
+        "recommended_sequence": [
+          "tap_deny",
+          "tap_deny",
+          "tap_deny"
+        ]
+      },
+      "instagram": {
+        "expected_popups": [
+          "notification_permission",
+          "sign_in_prompt"
+        ],
+        "recommended_sequence": [
+          "tap_deny",
+          "tap_deny"
+        ]
+      },
+      "tiktok": {
+        "expected_popups": [
+          "notification_permission",
+          "sign_in_prompt"
+        ],
+        "recommended_sequence": [
+          "tap_deny",
+          "tap_deny"
+        ]
+      },
+      "x": {
+        "expected_popups": [
+          "notification_permission",
+          "sign_in_prompt"
+        ],
+        "recommended_sequence": [
+          "tap_deny",
+          "tap_deny"
+        ]
+      },
+      "spotify": {
+        "expected_popups": [
+          "notification_permission",
+          "premium_upgrade"
+        ],
+        "recommended_sequence": [
+          "tap_deny",
+          "tap_deny"
+        ]
+      },
+      "chrome": {
+        "expected_popups": [
+          "sync_prompt"
+        ],
+        "recommended_sequence": [
+          "tap_deny"
         ]
       }
     }

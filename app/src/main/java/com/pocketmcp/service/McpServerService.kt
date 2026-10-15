@@ -39,6 +39,12 @@ class McpServerService : Service() {
         const val EXTRA_ERROR = "extra_error"
         const val EXTRA_SECURED = "extra_secured"
 
+        const val EXTRA_UPTIME_MS = "extra_uptime_ms"
+        const val EXTRA_REQUEST_COUNT = "extra_request_count"
+        const val EXTRA_TOOL_CALL_COUNT = "extra_tool_call_count"
+        const val EXTRA_ERROR_COUNT = "extra_error_count"
+        const val EXTRA_CONNECTION_COUNT = "extra_connection_count"
+
         private const val CHANNEL_ID = "mcp_server_channel"
         private const val NOTIFICATION_ID = 1001
     }
@@ -132,6 +138,7 @@ class McpServerService : Service() {
 
     private fun broadcastStatus(status: String, error: String? = lastError) {
         val running = mcpServer?.isRunning() == true
+        val server = mcpServer
         val update = Intent(ACTION_STATUS).apply {
             setPackage(packageName)
             putExtra(EXTRA_RUNNING, running)
@@ -139,6 +146,11 @@ class McpServerService : Service() {
             putExtra(EXTRA_ERROR, error)
             putExtra(EXTRA_PORT, currentPort)
             putExtra(EXTRA_SECURED, !apiKey.isNullOrBlank())
+            putExtra(EXTRA_UPTIME_MS, server?.uptimeMs ?: 0L)
+            putExtra(EXTRA_REQUEST_COUNT, server?.requestCount ?: 0)
+            putExtra(EXTRA_TOOL_CALL_COUNT, server?.toolCallCount ?: 0)
+            putExtra(EXTRA_ERROR_COUNT, server?.errorCount ?: 0)
+            putExtra(EXTRA_CONNECTION_COUNT, server?.activeConnections ?: 0)
         }
         sendBroadcast(update)
     }
@@ -200,7 +212,7 @@ class McpServerService : Service() {
 
         registrationListener = object : NsdManager.RegistrationListener {
             override fun onServiceRegistered(NsdServiceInfo: NsdServiceInfo) {
-                Log.d("McpServerService", "mDNS Service registered: \${NsdServiceInfo.serviceName}")
+                Log.d("McpServerService", "mDNS Service registered: ${NsdServiceInfo.serviceName}")
             }
             override fun onRegistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
                 Log.e("McpServerService", "mDNS Registration failed: $errorCode")
@@ -216,7 +228,7 @@ class McpServerService : Service() {
         try {
             nsdManager?.registerService(serviceInfo, NsdManager.PROTOCOL_DNS_SD, registrationListener)
         } catch (e: Exception) {
-            Log.e("McpServerService", "Failed to register mDNS: \${e.message}")
+            Log.e("McpServerService", "Failed to register mDNS: ${e.message}")
         }
     }
 
@@ -224,7 +236,7 @@ class McpServerService : Service() {
         try {
             registrationListener?.let { nsdManager?.unregisterService(it) }
         } catch (e: Exception) {
-            Log.e("McpServerService", "Failed to unregister mDNS: \${e.message}")
+            Log.e("McpServerService", "Failed to unregister mDNS: ${e.message}")
         }
         registrationListener = null
     }

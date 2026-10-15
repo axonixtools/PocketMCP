@@ -5,77 +5,77 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
 @Serializable
-data class JsonRpcRequest(
-    val jsonrpc: String = "2.0",
-    val method: String,
-    val params: JsonElement? = null,
-    val id: JsonElement? = null
+public data class JsonRpcRequest(
+    public val jsonrpc: String = "2.0",
+    public val method: String,
+    public val params: JsonElement? = null,
+    public val id: JsonElement? = null
 )
 
 @Serializable
-data class JsonRpcResponse(
-    val jsonrpc: String = "2.0",
-    val result: JsonElement? = null,
-    val error: JsonRpcError? = null,
-    val id: JsonElement? = null
+public data class JsonRpcResponse(
+    public val jsonrpc: String = "2.0",
+    public val result: JsonElement? = null,
+    public val error: JsonRpcError? = null,
+    public val id: JsonElement? = null
 )
 
 @Serializable
-data class JsonRpcError(
-    val code: Int,
-    val message: String,
-    val data: JsonElement? = null
+public data class JsonRpcError(
+    public val code: Int,
+    public val message: String,
+    public val data: JsonElement? = null
 )
 
-object McpErrorCodes {
-    const val PARSE_ERROR = -32700
-    const val INVALID_REQUEST = -32600
-    const val METHOD_NOT_FOUND = -32601
-    const val INVALID_PARAMS = -32602
-    const val INTERNAL_ERROR = -32603
-    const val TOOL_NOT_FOUND = -32001
+public object McpErrorCodes {
+    public const val PARSE_ERROR: Int = -32700
+    public const val INVALID_REQUEST: Int = -32600
+    public const val METHOD_NOT_FOUND: Int = -32601
+    public const val INVALID_PARAMS: Int = -32602
+    public const val INTERNAL_ERROR: Int = -32603
+    public const val TOOL_NOT_FOUND: Int = -32001
 }
 
 @Serializable
-data class McpInitializeResult(
-    val protocolVersion: String,
-    val serverInfo: McpServerInfo,
-    val capabilities: McpCapabilities
+public data class McpInitializeResult(
+    public val protocolVersion: String,
+    public val serverInfo: McpServerInfo,
+    public val capabilities: McpCapabilities
 )
 
 @Serializable
-data class McpServerInfo(
-    val name: String,
-    val version: String
+public data class McpServerInfo(
+    public val name: String,
+    public val version: String
 )
 
 @Serializable
-data class McpCapabilities(
-    val tools: JsonElement
+public data class McpCapabilities(
+    public val tools: JsonElement
 )
 
 @Serializable
-data class McpToolInfo(
-    val name: String,
-    val description: String,
-    val inputSchema: JsonObject
+public data class McpToolInfo(
+    public val name: String,
+    public val description: String,
+    public val inputSchema: JsonObject
 )
 
 @Serializable
-data class McpToolsListResult(
-    val tools: List<McpToolInfo>
+public data class McpToolsListResult(
+    public val tools: List<McpToolInfo>
 )
 
 @Serializable
-data class McpToolCallResult(
-    val content: List<McpContent>,
-    val isError: Boolean = false,
-    val toolError: String? = null
+public data class McpToolCallResult(
+    public val content: List<McpContent>,
+    public val isError: Boolean = false,
+    public val toolError: String? = null
 )
 
 @Serializable
-data class McpContent(
-    val type: String,
-    val text: String? = null,
-    val source: String? = null
+public data class McpContent(
+    public val type: String,
+    public val text: String? = null,
+    public val source: String? = null
 )

@@ -1,27 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimary">#1677FF</color>
-    <color name="colorPrimaryDark">#0B5CD0</color>
-    <color name="colorAccent">#36B37E</color>
+    <color name="colorPrimary">#2F8CFF</color>
+    <color name="colorPrimaryDark">#070E1A</color>
+    <color name="colorAccent">#17E18A</color>
 
-    <color name="background_color">#EEF2F8</color>
-    <color name="card_background_color">#FAFCFF</color>
-    <color name="card_stroke_color">#D7E2F0</color>
-    <color name="surface_subtle_color">#E8EEF7</color>
+    <color name="background_color">#05070D</color>
+    <color name="card_background_color">#121722</color>
+    <color name="card_stroke_color">#2A3444</color>
+    <color name="surface_subtle_color">#0D131D</color>
+    <color name="info_tile_background">#0F1520</color>
+    <color name="info_tile_stroke">#2A3748</color>
 
-    <color name="text_color_primary">#121A29</color>
-    <color name="text_color_secondary">#5B6577</color>
-    <color name="text_color_muted">#7E8798</color>
+    <color name="text_color_primary">#F4F7FF</color>
+    <color name="text_color_secondary">#B3BCD0</color>
+    <color name="text_color_muted">#7E889D</color>
 
-    <color name="status_on_color">#2CCB78</color>
-    <color name="status_off_color">#FF5F57</color>
-    <color name="status_running_text_color">#0F8A4B</color>
-    <color name="status_stopped_text_color">#D64545</color>
+    <color name="status_on_color">#17E18A</color>
+    <color name="status_off_color">#FF5D73</color>
+    <color name="status_running_text_color">#F4FFF9</color>
+    <color name="status_stopped_text_color">#FFD6DC</color>
 
     <color name="button_primary_text">#FFFFFF</color>
-    <color name="button_secondary_text">#1C4B93</color>
-    <color name="ripple_primary">#291677FF</color>
-    <color name="ripple_neutral">#1A1C2738</color>
+    <color name="button_secondary_text">#C8DBFF</color>
+    <color name="ripple_primary">#332F8CFF</color>
+    <color name="ripple_neutral">#229AA8C0</color>
 
     <color name="white">#FFFFFFFF</color>
     <color name="black">#FF000000</color>

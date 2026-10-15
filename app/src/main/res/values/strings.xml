@@ -1,30 +1,42 @@
 <resources>
     <string name="app_name">PocketMCP</string>
-    <string name="header_subtitle">Private MCP bridge for your phone</string>
+    <string name="header_subtitle">Mobile MCP Dashboard</string>
+    <string name="header_alerts">Alerts</string>
+    <string name="avatar_initials">PM</string>
 
     <string name="server_running_channel">PocketMCP Service</string>
     <string name="server_starting_notification">Starting PocketMCP on port %1$d</string>
     <string name="server_running_notification">PocketMCP running on port %1$d</string>
 
-    <string name="server_status_running">Server running</string>
-    <string name="server_status_stopped">Server stopped</string>
-    <string name="server_status_starting">Starting server...</string>
-    <string name="server_status_stopping">Stopping server...</string>
-    <string name="server_status_failed">Server error</string>
+    <string name="server_status_label">Server Status</string>
+    <string name="server_status_running">Active</string>
+    <string name="server_status_stopped">Offline</string>
+    <string name="server_status_starting">Starting...</string>
+    <string name="server_status_stopping">Stopping...</string>
+    <string name="server_status_failed">Error</string>
     <string name="server_switch_label">Server</string>
+    <string name="status_listening">Listening for requests</string>
+    <string name="status_idle">Waiting for start</string>
+    <string name="status_error">Error: %1$s</string>
 
-    <string name="mcp_endpoint_label">Connection endpoint</string>
+    <string name="local_ip_label">Local IP</string>
+    <string name="auth_label">Auth</string>
+    <string name="auth_enabled">Enabled</string>
+    <string name="auth_disabled">Disabled</string>
+
+    <string name="mcp_endpoint_label">MCP endpoint</string>
     <string name="copy_endpoint">Copy endpoint</string>
 
-    <string name="server_config_title">Server Configuration</string>
+    <string name="server_config_title">Network Config</string>
+    <string name="server_config_subtitle">Set port and API key for secure access.</string>
     <string name="port_hint">Port (1-65535)</string>
     <string name="api_key_hint">API key (recommended)</string>
-    <string name="generate_api_key">Generate key</string>
-    <string name="start_server">Start server</string>
-    <string name="stop_server">Stop server</string>
+    <string name="generate_api_key">Generate API Key</string>
+    <string name="start_server">Start Server</string>
+    <string name="stop_server">Stop Server</string>
     <string name="security_hint">Keep API key protection enabled when using shell, contacts, location, camera, microphone, and file tools.</string>
 
-    <string name="permissions_title">Permissions</string>
+    <string name="permissions_title">System Permissions</string>
     <string name="request_permissions">Request missing permissions</string>
     <string name="permission_location">Location</string>
     <string name="permission_contacts">Contacts</string>
@@ -39,14 +51,15 @@
     <string name="permission_missing">Missing</string>
     <string name="permission_not_required">Not required on this Android version</string>
 
-    <string name="quick_connect_title">Quick Connect</string>
-    <string name="copy_config">Copy MCP config</string>
+    <string name="quick_connect_title">MCP Server Copy</string>
+    <string name="quick_connect_subtitle">One tap to copy this block into your MCP client.</string>
+    <string name="copy_config">Copy MCP server config</string>
 
-    <string name="killer_use_cases_title">Killer Use Cases</string>
-    <string name="killer_use_cases_body">1) Ask your assistant for battery and location before leaving.\n2) Find contacts hands-free during desktop workflows.\n3) Run safe diagnostics on your phone without unlocking it.</string>
+    <string name="killer_use_cases_title">Recent Activity</string>
+    <string name="killer_use_cases_body">- get_location called by Desktop-Main (2m ago)\n- read_sms_latest called by Claude-Web (3m ago)\n- list_installed_apps called by Cursor-IDE (5m ago)</string>
 
-    <string name="security_state_enabled">Security: API key enabled</string>
-    <string name="security_state_disabled">Security: API key disabled (LAN exposure risk)</string>
+    <string name="security_state_enabled">Listening for requests</string>
+    <string name="security_state_disabled">Server idle</string>
     <string name="security_warning_no_key">No API key is set. Anyone on your network can access tools.</string>
     <string name="last_error_prefix">Last error:</string>
 
@@ -57,4 +70,9 @@
     <string name="ip_unknown">unknown-ip</string>
     <string name="accessibility_service_description">Allows PocketMCP to perform requested global actions and gestures.</string>
     <string name="accessibility_service_summary">Used for MCP actions like home/back/scroll/lock screen.</string>
+
+    <string name="nav_server">Server</string>
+    <string name="nav_logs">Logs</string>
+    <string name="nav_tools">Tools</string>
+    <string name="nav_settings">Settings</string>
 </resources>

@@ -1,0 +1,16 @@
+complexity:
+  LongMethod:
+    active: true
+    threshold: 60
+  LongParameterList:
+    active: true
+    threshold: 7
+naming:
+  FunctionNaming:
+    active: true
+potential-bugs:
+  active: true
+style:
+  MagicNumber:
+    active: true
+    ignoreAnnotated: ['JsonClass']

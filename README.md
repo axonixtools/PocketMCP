@@ -54,6 +54,7 @@ The project is MIT-licensed and community contributions are welcome.
 | `transcribe_file`     | Direct audio-file transcription by path                           |
 | `transcribe_whatsapp_audio` | Transcribe latest WhatsApp/WhatsApp Business voice note     |
 | `human_command`       | Natural-language command router across major tools                |
+| `intelligent_action`  | Experimental humanoid planner/executor with retries and traces    |
 | `http_request`        | Make outbound HTTP requests from phone                            |
 | `read_file`           | Read files from allowed storage paths                             |
 
@@ -87,6 +88,33 @@ The project is MIT-licensed and community contributions are welcome.
 - **Historical Access**: Recent notifications with search and filtering
 - **Management**: Clear history, check status, get counts
 
+## App UI & Design
+
+PocketMCP features a **custom-built Jetpack Compose UI** with a premium "Neural Dark" cyber-dashboard aesthetic.
+
+### Design Highlights
+
+- **Neural Dark Theme**: Deep space background (`#03040A`) with electric cyan (`#00E5FF`) and violet (`#7C4DFF`) energy accents
+- **Glassmorphism Cards**: Translucent surfaces with subtle borders and active glow states
+- **Ambient Animated Background**: Slow-orbiting glow orbs with a subtle mesh grid overlay
+- **Fluid Micro-interactions**: Spring-physics press scaling, staggered card entrances, and smooth page transitions
+- **Status Orb**: Animated pulsing indicator with dual ripple rings that react to server state
+
+### Screens
+
+| Screen | Description |
+|--------|-------------|
+| **Server** | Hero status orb, connection info, config inputs, one-tap MCP config copy |
+| **Logs** | Live monospace terminal, filterable event stream, color-coded log cards |
+| **Tools** | 20-tool searchable library with category filtering and real-time status badges |
+| **Settings** | Permission toggles, safety filter, developer mode, API key management |
+
+### Navigation
+
+- Bottom navigation bar with animated scale, icon transitions, and expanding indicator pills
+- Horizontal slide + fade page transitions between tabs
+- Snackbar feedback for all user actions (replacing legacy Toast)
+
 ## Security model
 
 - API key authentication supported via `X-API-Key` (recommended).
@@ -104,6 +132,55 @@ The project is MIT-licensed and community contributions are welcome.
 - UI reflects actual service state using status broadcasts.
 - **Enhanced App Discovery**: Detects 309+ launchable apps (up from 25).
 - **Graceful Fallbacks**: Manual interaction instructions when automation not possible.
+
+## Intelligent Orchestration (Experimental)
+
+PocketMCP now includes a new high-level orchestration tool, `intelligent_action`, designed for "humanoid" multi-step flows across apps.
+
+### What it adds
+
+- Natural command parsing into structured intents and entities
+- Task-graph planning (instead of one-shot command execution)
+- Step-by-step execution with retry and verification
+- Risk gating for sensitive actions (for example report/flag flows)
+- Trace logging for continuous reliability improvement
+
+### Current architecture
+
+- Tool entrypoint: `app/src/main/java/com/pocketmcp/tools/IntelligentActionTool.kt`
+- Agent core packages: `app/src/main/java/com/pocketmcp/agent/`
+  - `model/` intent/step/result models
+  - `nlu/` parser and entity resolution
+  - `planner/` graph builder and policy gate
+  - `execution/` orchestrator, executor, verifier, retry behavior
+  - `skills/` app-specific skill packs (`youtube`, `x`)
+  - `perception/` popup/blocker helpers
+  - `memory/` session context and trace writing
+  - `dialog/` clarification prompts for ambiguous requests
+
+### Usage notes
+
+- Use `dry_run=true` to inspect parsed intents and planned steps before execution.
+- Keep `confirm_risky=true` for safer defaults in production-like usage.
+- Execution traces are written under app-private files (`agent-traces`) for tuning.
+
+### Example MCP call payload
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": {
+    "name": "intelligent_action",
+    "arguments": {
+      "command": "open youtube and search psg and bayern",
+      "dry_run": false,
+      "confirm_risky": true
+    }
+  }
+}
+```
 
 ## Quick start
 
@@ -128,20 +205,23 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 ### 2) Start server in app
 
 1. Open PocketMCP.
-2. Set port (default `8080`).
-3. Generate or paste API key.
-4. Start server from switch or button.
-5. Copy endpoint/config from the Quick Connect section.
+2. The **Server** tab opens by default.
+3. Set port (default `8080`) in the **Configuration** card.
+4. Generate or paste an API key.
+5. Tap **Start Server** — the status orb will pulse green when active.
+6. Copy the endpoint or full MCP config from the **Quick Connect** card.
 
 ### 3) Enable Permissions
 
 **Required for full functionality:**
 
-- **Phone**: CALL_PHONE permission in app settings
-- **Microphone**: RECORD_AUDIO permission in app settings
-- **SMS**: SEND_SMS, READ_SMS permissions
-- **Notifications**: Settings > Apps > Special Access > Notification Access
-- **Accessibility**: Settings > Apps > Special Access > Accessibility Services
+- **Phone**: `CALL_PHONE` permission in app settings
+- **Microphone**: `RECORD_AUDIO` permission in app settings
+- **SMS**: `SEND_SMS`, `READ_SMS` permissions
+- **Notifications**: Settings → Apps → Special Access → Notification Access
+- **Accessibility**: Settings → Apps → Special Access → Accessibility Services
+
+All permission states are visible in the **Settings** tab with one-tap navigation to system settings.
 
 ### 4) Verify server
 
@@ -249,6 +329,50 @@ python3 pocket_mcp_client.py 192.0.2.100:8080 your-api-key \
   --call send_message \
   --args '{"app":"whatsapp","phone_number":"+15551234567","message":"hello from desktop"}'
 ```
+
+## Development
+
+### Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| UI Framework | Jetpack Compose (Material 3) |
+| Language | Kotlin 1.9.20 |
+| Build System | Gradle 9.0-milestone-1 with Kotlin DSL |
+| HTTP Server | Ktor 2.3.7 (Netty engine) |
+| Serialization | kotlinx-serialization-json 1.6.0 |
+| Target SDK | 34 (Android 14) |
+| Min SDK | 26 (Android 8.0) |
+
+### Project Structure
+
+```
+app/src/main/java/com/pocketmcp/
+├── MainActivity.kt              # Compose entry point + business logic
+├── accessibility/               # PhoneAccessibilityService
+├── server/                      # Ktor MCP server + JSON-RPC types
+├── service/                     # McpServerService (foreground service)
+├── tools/                       # ~35 MCP tool implementations
+└── ui/                          # Jetpack Compose UI
+    ├── theme/                   # Colors, Typography, Theme
+    ├── components/              # Reusable UI components
+    │   ├── AnimatedBackground.kt
+    │   ├── AnimatedBottomNav.kt
+    │   ├── GlassCard.kt
+    │   └── StatusOrb.kt
+    └── screens/                 # Screen composables
+        ├── DashboardScreen.kt
+        ├── LogsScreen.kt
+        ├── SettingsScreen.kt
+        └── ToolsScreen.kt
+```
+
+### Adding a New Tool
+
+1. Create a new Kotlin file in `app/src/main/java/com/pocketmcp/tools/`.
+2. Implement `McpToolHandler`.
+3. Register the tool in `McpServer.init { registry.register(YourTool()) }`.
+4. Add it to `ToolsScreen.kt` for UI visibility.
 
 ## Permissions
 

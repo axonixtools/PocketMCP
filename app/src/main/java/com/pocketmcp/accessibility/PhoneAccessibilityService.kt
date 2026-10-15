@@ -12,7 +12,7 @@ import kotlin.coroutines.resume
 
 private const val TAG = "PocketMCP.Accessibility"
 
-class PhoneAccessibilityService : AccessibilityService() {
+public class PhoneAccessibilityService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         // No-op: this service is used for user-triggered global actions and gestures.
@@ -136,19 +136,19 @@ class PhoneAccessibilityService : AccessibilityService() {
         }
     }
 
-    companion object {
+    public companion object {
         @Volatile
         private var instance: PhoneAccessibilityService? = null
 
-        fun isEnabled(): Boolean = instance != null
+        public fun isEnabled(): Boolean = instance != null
 
-        fun getInstance(): PhoneAccessibilityService? = instance
+        public fun getInstance(): PhoneAccessibilityService? = instance
 
-        fun runGlobalAction(action: Int): Boolean {
+        public fun runGlobalAction(action: Int): Boolean {
             return instance?.performGlobalAction(action) == true
         }
 
-        suspend fun runSwipe(
+        public suspend fun runSwipe(
             direction: String,
             distanceRatio: Float,
             durationMs: Long
@@ -157,7 +157,7 @@ class PhoneAccessibilityService : AccessibilityService() {
             return service.dispatchSwipe(direction, distanceRatio, durationMs)
         }
 
-        suspend fun runTap(
+        public suspend fun runTap(
             x: Int,
             y: Int,
             durationMs: Long = 80L
@@ -166,7 +166,7 @@ class PhoneAccessibilityService : AccessibilityService() {
             return service.dispatchTap(x, y, durationMs)
         }
 
-        suspend fun tapVisibleNodeByText(
+        public suspend fun tapVisibleNodeByText(
             query: String,
             exact: Boolean = false,
             occurrence: Int = 1
@@ -221,7 +221,7 @@ class PhoneAccessibilityService : AccessibilityService() {
          * This is text-focused: it surfaces visible text and content descriptions that an AI
          * can use to describe "what is going on" on screen (e.g., current YouTube video title).
          */
-        fun captureScreenSnapshot(maxNodes: Int = 80): ScreenSnapshot? {
+        public fun captureScreenSnapshot(maxNodes: Int = 80): ScreenSnapshot? {
             val service = instance ?: return null
             val root: AccessibilityNodeInfo = service.rootInActiveWindow ?: return null
 
@@ -321,7 +321,7 @@ class PhoneAccessibilityService : AccessibilityService() {
     }
 }
 
-data class ScreenNodeSnapshot(
+public data class ScreenNodeSnapshot(
     val text: String,
     val contentDescription: String,
     val className: String,
@@ -329,13 +329,13 @@ data class ScreenNodeSnapshot(
     val bounds: Rect
 )
 
-data class ScreenSnapshot(
+public data class ScreenSnapshot(
     val packageName: String,
     val rootClassName: String,
     val nodes: List<ScreenNodeSnapshot>
 )
 
-data class TapResult(
+public data class TapResult(
     val success: Boolean,
     val packageName: String? = null,
     val matchedText: String? = null,

@@ -10,6 +10,7 @@ import com.pocketmcp.tools.FlashlightTool
 import com.pocketmcp.tools.GlobalActionTool
 import com.pocketmcp.tools.HumanCommandTool
 import com.pocketmcp.tools.HttpProxyTool
+import com.pocketmcp.tools.IntelligentActionTool
 import com.pocketmcp.tools.LaunchAppTool
 import com.pocketmcp.tools.ListAppsTool
 import com.pocketmcp.tools.LocationTool
@@ -60,12 +61,15 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 
 private const val TAG = "PocketMCP"
 private const val MCP_PROTOCOL_VERSION = "2024-11-05"
 private const val SERVER_VERSION = "0.2.6"
 
-class McpServer(
+public class McpServer(
     private val context: Context,
     private val port: Int = 8080,
     private val apiKey: String? = null
@@ -76,6 +80,19 @@ class McpServer(
     private val registry = McpToolRegistry()
     private val sseClients = CopyOnWriteArrayList<suspend (String) -> Unit>()
     private val json = Json { ignoreUnknownKeys = true; prettyPrint = false }
+
+    // Telemetry
+    private val _requestCount = AtomicInteger(0)
+    private val _toolCallCount = AtomicInteger(0)
+    private val _errorCount = AtomicInteger(0)
+    private val _toolStats = ConcurrentHashMap<String, AtomicInteger>()
+    private val _startTime = AtomicLong(0)
+
+    public val requestCount: Int get() = _requestCount.get()
+    public val toolCallCount: Int get() = _toolCallCount.get()
+    public val errorCount: Int get() = _errorCount.get()
+    public val activeConnections: Int get() = sseClients.size
+    public val uptimeMs: Long get() = if (_startTime.get() > 0) System.currentTimeMillis() - _startTime.get() else 0
 
     init {
         registry.register(DeviceInfoTool())
@@ -97,6 +114,7 @@ class McpServer(
         registry.register(TranscribeAudioTool())
         registry.register(TranscribeFileTool())
         registry.register(HumanCommandTool())
+        registry.register(IntelligentActionTool())
         registry.register(CallTool())
         registry.register(MessagingTool())
         registry.register(SocialMediaTool())
@@ -113,16 +131,23 @@ class McpServer(
         registry.register(SmartNotificationManager())
     }
 
-    fun registerTool(tool: McpToolHandler) = registry.register(tool)
+    public fun registerTool(tool: McpToolHandler): Unit = registry.register(tool)
 
-    fun isRunning(): Boolean = engine != null
+    public fun isRunning(): Boolean = engine != null
 
     @Synchronized
-    fun start() {
+    public fun start(): Unit {
         if (engine != null) {
             Log.i(TAG, "MCP server already running on port $port")
             return
         }
+
+        // Reset telemetry
+        _requestCount.set(0)
+        _toolCallCount.set(0)
+        _errorCount.set(0)
+        _toolStats.clear()
+        _startTime.set(System.currentTimeMillis())
 
         val createdEngine = embeddedServer(Netty, port = port) {
             install(ContentNegotiation) {
@@ -266,7 +291,7 @@ class McpServer(
                             }
                         }
                     } catch (e: Exception) {
-                        Log.e(TAG, "WebSocket error: \${e.message}")
+                        Log.e(TAG, "WebSocket error: ${e.message}")
                     } finally {
                         Log.i(TAG, "WebSocket client disconnected.")
                     }
@@ -302,16 +327,20 @@ class McpServer(
         Log.i(TAG, "MCP server started on port $port")
     }
 
+    public fun getToolStats(): Map<String, Int> = _toolStats.mapValues { it.value.get() }
+
     @Synchronized
-    fun stop() {
+    public fun stop(): Unit {
         val currentEngine = engine ?: return
         currentEngine.stop(1_000, 5_000)
         engine = null
         sseClients.clear()
+        _startTime.set(0)
         Log.i(TAG, "MCP server stopped")
     }
 
     private suspend fun handleRequest(request: JsonRpcRequest): JsonRpcResponse {
+        _requestCount.incrementAndGet()
         return when (request.method) {
             "initialize" -> {
                 val result = McpInitializeResult(
@@ -369,12 +398,15 @@ class McpServer(
                 try {
                     val args = params["arguments"] as? JsonObject
                     val result = tool.execute(args, context)
+                    _toolCallCount.incrementAndGet()
+                    _toolStats.getOrPut(toolName) { AtomicInteger(0) }.incrementAndGet()
                     JsonRpcResponse(
                         id = request.id,
                         result = json.encodeToJsonElement(McpToolCallResult.serializer(), result)
                     )
                 } catch (e: Exception) {
                     Log.e(TAG, "Tool execution error", e)
+                    _errorCount.incrementAndGet()
                     JsonRpcResponse(
                         id = request.id,
                         error = JsonRpcError(McpErrorCodes.INTERNAL_ERROR, e.message ?: "Tool error")
@@ -392,7 +424,7 @@ class McpServer(
         }
     }
 
-    private suspend fun handleNotification(request: JsonRpcRequest) {
+    private suspend fun handleNotification(request: JsonRpcRequest): Unit {
         when (request.method) {
             "notifications/initialized" -> {
                 Log.d(TAG, "Received notifications/initialized")
@@ -403,7 +435,7 @@ class McpServer(
         }
     }
 
-    private suspend fun PipelineContext<Unit, ApplicationCall>.streamSse() {
+    private suspend fun PipelineContext<Unit, ApplicationCall>.streamSse(): Unit {
         call.response.header("Cache-Control", "no-cache")
         call.response.header("X-Accel-Buffering", "no")
         call.respondTextWriter(ContentType.parse("text/event-stream")) {
@@ -428,7 +460,7 @@ class McpServer(
         }
     }
 
-    suspend fun broadcast(message: String) {
+    public suspend fun broadcast(message: String): Unit {
         sseClients.forEach { it(message) }
     }
 

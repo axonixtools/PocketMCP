@@ -118,27 +118,11 @@ class ScreenshotTool : McpToolHandler {
     }
 
     @Suppress("DEPRECATION")
-    private suspend fun captureScreenshotLegacy(context: Context, format: String, quality: Int): String = withContext(Dispatchers.Main) {
-        try {
-            val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-            val view = android.view.View(context)
-            view.layoutParams = android.view.WindowManager.LayoutParams(
-                android.view.WindowManager.LayoutParams.MATCH_PARENT,
-                android.view.WindowManager.LayoutParams.MATCH_PARENT
-            )
-            
-            val display = windowManager.defaultDisplay
-            val metrics = android.util.DisplayMetrics()
-            display.getMetrics(metrics)
-
-            val bitmap = Bitmap.createBitmap(metrics.widthPixels, metrics.heightPixels, Bitmap.Config.ARGB_8888)
-            val canvas = Canvas(bitmap)
-            view.draw(canvas)
-
-            bitmapToBase64(bitmap, format, quality)
-        } catch (e: Exception) {
-            throw Exception("Legacy screenshot capture failed: ${e.message}")
-        }
+    private suspend fun captureScreenshotLegacy(context: Context, format: String, quality: Int): String {
+        throw IllegalStateException(
+            "Screenshot capture requires Android 8.0+ (API 26) with PixelCopy. " +
+            "Current device is running API ${Build.VERSION.SDK_INT}."
+        )
     }
 
     private fun bitmapToBase64(bitmap: Bitmap, format: String, quality: Int): String {
