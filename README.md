@@ -250,9 +250,13 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 
 **Required for full functionality:**
 
+- **Location**: `ACCESS_FINE_LOCATION` — used by `get_location`
+- **Contacts**: `READ_CONTACTS` — used by `search_contacts`
+- **Camera**: `CAMERA`
 - **Phone**: `CALL_PHONE` permission in app settings
 - **Microphone**: `RECORD_AUDIO` permission in app settings
 - **SMS**: `SEND_SMS`, `READ_SMS` permissions
+- **Audio/Storage**: `READ_MEDIA_AUDIO` (Android 13+) or `READ_EXTERNAL_STORAGE` — used by audio transcription
 - **Notifications**: Settings → Apps → Special Access → Notification Access
 - **Accessibility**: Settings → Apps → Special Access → Accessibility Services
 
@@ -432,6 +436,10 @@ Some tools require Android special permissions or services:
 - Phone (`CALL_PHONE`)
 - Microphone (`RECORD_AUDIO`)
 - SMS (`SEND_SMS`, `READ_SMS`, `RECEIVE_SMS`)
+- Location (`ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`)
+- Contacts (`READ_CONTACTS`)
+- Camera (`CAMERA`)
+- Audio/Storage (`READ_MEDIA_AUDIO` / `READ_EXTERNAL_STORAGE`)
 - Notifications access (Notification Listener)
 - Accessibility service (for UI automation)
 
