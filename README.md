@@ -5,10 +5,37 @@
 Turn your Android phone into an MCP (Model Context Protocol) server.
 AI agents and desktop scripts can call your phone for live data and actions over LAN or Tailscale.
 
+## Demo
+
+Tab switching, staggered content reveals, log filters, the sliding segmented control, category chips, and dark mode — captured from the live UI:
+
+<p align="center">
+  <img src="docs/demo.gif" alt="PocketMCP UI walkthrough — tabs, filters, chips, dark mode" width="300" />
+</p>
+
+<p align="center">
+  <a href="docs/demo.mp4">▶ Watch the full-resolution walkthrough (MP4 · 736×1540 · 18s)</a>
+</p>
+
 ## Download (Testing Pre-release)
 
-- Latest testing release: [v1.0.0-beta.1](https://github.com/axonixtools/PocketMCP/releases/tag/v1.0.0-beta.1)
+- **Latest debug build:** [`PocketMCP-debug.apk`](./PocketMCP-debug.apk) (v1.0.0-beta.2) — install over USB with `adb install -r PocketMCP-debug.apk`
+- Previous tagged release: [v1.0.0-beta.1](https://github.com/axonixtools/PocketMCP/releases/tag/v1.0.0-beta.1)
 - This build is marked as pre-release and may contain bugs while active development continues.
+
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/all-light.png" alt="PocketMCP — Server, Logs, Tools, and Settings in light mode" width="880" />
+</p>
+
+<p align="center"><em>Light mode — Server · Logs · Tools · Settings</em></p>
+
+<p align="center">
+  <img src="docs/screenshots/all-dark.png" alt="PocketMCP — Server, Logs, Tools, and Settings in dark mode" width="880" />
+</p>
+
+<p align="center"><em>Dark mode — the app follows the system light/dark setting</em></p>
 
 ## Open-Source Commitment
 
@@ -92,29 +119,32 @@ The project is MIT-licensed and community contributions are welcome.
 
 ## App UI & Design
 
-PocketMCP features a **custom-built Jetpack Compose UI** with a premium "Neural Dark" cyber-dashboard aesthetic.
+PocketMCP uses a **custom-built Jetpack Compose UI** with a clean, platform-native design language — neutral surfaces, a single system-blue accent, and real typography.
 
 ### Design Highlights
 
-- **Neural Dark Theme**: Deep space background (`#03040A`) with electric cyan (`#00E5FF`) and violet (`#7C4DFF`) energy accents
-- **Glassmorphism Cards**: Translucent surfaces with subtle borders and active glow states
-- **Ambient Animated Background**: Slow-orbiting glow orbs with a subtle mesh grid overlay
-- **Fluid Micro-interactions**: Spring-physics press scaling, staggered card entrances, and smooth page transitions
-- **Status Orb**: Animated pulsing indicator with dual ripple rings that react to server state
+- **Light & Dark**: Follows the system setting; calm neutral surfaces with grouped inset lists (no neon, no glassmorphism)
+- **System Blue Accent** (`#007AFF` light / `#0A84FF` dark); semantic colors are reserved for status (green = running, orange = attention, red = destructive)
+- **Inter Typeface**: Bundled static weights mapped to an Apple-scale type ramp (34 / 22 / 20 / 17 / 15 / 13 / 11 pt)
+- **Hairline Separators & Grouped Cards**: iOS-style inset lists with 12 pt rounded cards and inset hairline dividers
+- **Consistent Rhythm**: 24 / 16 / 8 pt section spacing, 48 pt minimum touch targets, single-line rows with ellipsis — nothing cramped
+- **Restrained Motion**: Staggered section entrances on tab switches, a sliding segmented-control pill, scrolling filter chips, spring tab icons, counting stat numbers, a pulsing status dot, and iOS-style press feedback on rows and buttons; no glows, orbs, or parallax
+
+A static HTML replica of all four screens (with a live light/dark toggle) lives in `preview/app-preview.html` — open it in any browser to see the design without building the app. The screenshots and demo video in this README are generated from it with `node preview/capture.mjs both` (headless Chrome + ffmpeg).
 
 ### Screens
 
 | Screen | Description |
 |--------|-------------|
-| **Server** | Hero status orb, connection info, config inputs, one-tap MCP config copy |
-| **Logs** | Live monospace terminal, filterable event stream, color-coded log cards |
-| **Tools** | 20-tool searchable library with category filtering and real-time status badges |
-| **Settings** | Permission toggles, safety filter, developer mode, API key management |
+| **Server** | Status card with start/stop action, session stats, connection details, port/API-key config, one-tap MCP config copy, QR |
+| **Logs** | Runtime terminal, segmented filters (All / Errors / Tools / Requests), color-coded event list |
+| **Tools** | 33-tool searchable library with scrolling category filter chips and per-tool status |
+| **Settings** | Grouped permission toggles, safety filter, developer mode, API key management |
 
 ### Navigation
 
-- Bottom navigation bar with animated scale, icon transitions, and expanding indicator pills
-- Horizontal slide + fade page transitions between tabs
+- Full-width tab bar with a hairline top border; tab icons are outline when idle and filled when selected, tinted system blue
+- Quiet cross-fade page transitions between tabs, with a short per-section entrance cascade (no lateral slide)
 - Snackbar feedback for all user actions (replacing legacy Toast)
 
 ## Security model
@@ -362,10 +392,10 @@ app/src/main/java/com/pocketmcp/
 └── ui/                          # Jetpack Compose UI
     ├── theme/                   # Colors, Typography, Theme
     ├── components/              # Reusable UI components
-    │   ├── AnimatedBackground.kt
-    │   ├── AnimatedBottomNav.kt
-    │   ├── GlassCard.kt
-    │   └── StatusOrb.kt
+    │   ├── Cards.kt             # Grouped cards, list rows, section headers
+    │   ├── CodeBlock.kt         # Monospace code surface
+    │   ├── Controls.kt          # Buttons, segmented control, search bar
+    │   └── NavBar.kt            # Bottom tab bar
     └── screens/                 # Screen composables
         ├── DashboardScreen.kt
         ├── LogsScreen.kt
