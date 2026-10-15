@@ -1,0 +1,698 @@
+<!doctype html>
+<html lang="en" class="theme-light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PocketMCP — Design Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  * { box-sizing: border-box; }
+  :root {
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  .theme-light {
+    --bg:#F2F2F7; --card:#FFFFFF; --label:#000000;
+    --label2:rgba(60,60,67,.6); --label3:rgba(60,60,67,.3);
+    --sep:rgba(60,60,67,.29); --fill:rgba(118,118,128,.12);
+    --code:#F4F4F6; --blue:#007AFF; --green:#34C759; --orange:#FF9500;
+    --red:#FF3B30; --indigo:#5856D6; --gray:#8E8E93;
+    --page:#E9E9EE; --frame:#111214; --shadow:0 24px 60px rgba(25,25,35,.18);
+    --segment:#FFFFFF; --segshadow:0 1px 3px rgba(0,0,0,.12);
+    --press:rgba(120,120,128,.16); --warnbg:rgba(255,149,0,.12);
+  }
+  .theme-dark {
+    --bg:#000000; --card:#1C1C1E; --label:#FFFFFF;
+    --label2:rgba(235,235,245,.6); --label3:rgba(235,235,245,.3);
+    --sep:rgba(84,84,88,.65); --fill:rgba(118,118,128,.24);
+    --code:#0E0E10; --blue:#0A84FF; --green:#30D158; --orange:#FF9F0A;
+    --red:#FF453A; --indigo:#5E5CE6; --gray:#98989D;
+    --page:#0A0A0B; --frame:#09090A; --shadow:0 30px 80px rgba(0,0,0,.65);
+    --segment:#636366; --segshadow:none;
+    --press:rgba(120,120,128,.28); --warnbg:rgba(255,159,10,.16);
+  }
+  html, body { margin:0; padding:0; }
+  body {
+    font-family: var(--font); background: var(--page); color: var(--label);
+    transition: background .3s ease, color .3s ease;
+    padding: 28px clamp(16px, 4vw, 48px) 48px;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* ---------- page chrome ---------- */
+  .page-head {
+    max-width: 1460px; margin: 0 auto 8px; display:flex; flex-wrap:wrap;
+    gap: 18px; align-items:flex-end; justify-content:space-between;
+  }
+  .eyebrow { font-size:12px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color: var(--blue); }
+  h1 { margin:6px 0 4px; font-size: clamp(22px, 3vw, 30px); font-weight:700; letter-spacing:-.4px; }
+  .pagesub { margin:0; font-size:14px; color: var(--label2); }
+  .theme-toggle { display:flex; background: var(--fill); border-radius:9px; padding:2px; }
+  .theme-toggle button {
+    font:inherit; font-size:13px; font-weight:500; color: var(--label2);
+    background:transparent; border:0; padding:6px 16px; border-radius:7px; cursor:pointer;
+  }
+  .theme-toggle button.on { background: var(--segment); color: var(--label); font-weight:600; box-shadow: var(--segshadow); }
+  .tokens { max-width:1460px; margin: 14px auto 30px; display:flex; flex-wrap:wrap; gap:8px 18px; align-items:center; font-size:12px; color: var(--label2); }
+  .tokens .sw { display:inline-flex; align-items:center; gap:7px; }
+  .tokens .sw i { width:12px; height:12px; border-radius:4px; display:inline-block; }
+  .tokens .tag { color: var(--label3); }
+  /* ---------- phones ---------- */
+  .phones { max-width:1460px; margin:0 auto; display:flex; flex-wrap:wrap; gap:34px; justify-content:center; }
+  .phone {
+    width:340px; height:742px; border-radius:54px; background: var(--frame);
+    padding:10px; position:relative; flex:0 0 auto;
+    box-shadow: var(--shadow), inset 0 0 0 1px rgba(255,255,255,.08);
+    transition: box-shadow .3s ease;
+  }
+  .phone .island {
+    position:absolute; top:22px; left:50%; transform:translateX(-50%);
+    width:92px; height:26px; border-radius:13px; background:#000; z-index:6;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
+  }
+  .screen {
+    position:relative; width:100%; height:100%; border-radius:44px; overflow:hidden;
+    background: var(--bg); transition: background .3s ease;
+  }
+  .status {
+    position:absolute; top:0; left:0; right:0; height:50px; z-index:5;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 26px 0 32px; color: var(--label); font-size:15px; font-weight:600;
+  }
+  .status .icons { display:flex; gap:6px; align-items:center; color: var(--label); }
+  .scrscreen {
+    position:absolute; inset:0; overflow-y:auto; padding:60px 16px 104px;
+    display:none; scrollbar-width: none;
+  }
+  .scrscreen::-webkit-scrollbar { display:none; }
+  .scrscreen.on { display:block; }
+  .scrscreen.on > * { animation: rise .34s cubic-bezier(.32,.72,.32,1) both; }
+  .scrscreen.on > *:nth-child(1) { animation-delay:.02s; }
+  .scrscreen.on > *:nth-child(2) { animation-delay:.09s; }
+  .scrscreen.on > *:nth-child(3) { animation-delay:.16s; }
+  .scrscreen.on > *:nth-child(4) { animation-delay:.23s; }
+  .scrscreen.on > *:nth-child(5) { animation-delay:.30s; }
+  .scrscreen.on > *:nth-child(6) { animation-delay:.37s; }
+  .scrscreen.on > *:nth-child(7) { animation-delay:.44s; }
+  .scrscreen.on > *:nth-child(8) { animation-delay:.51s; }
+  @keyframes rise { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform:none; } }
+  .lt { font-size:34px; font-weight:700; letter-spacing:-.4px; color: var(--label); }
+  .ltsub { font-size:13px; color: var(--label2); margin-top:2px; }
+  /* ---------- grouped lists ---------- */
+  .section { margin-top:24px; }
+  .sh { font-size:13px; color: var(--label2); padding:0 16px 8px; }
+  .card { background: var(--card); border-radius:12px; transition: background .3s ease; }
+  .card.pad { padding:16px; }
+  .row { display:flex; align-items:center; gap:12px; padding:11px 16px; min-height:48px; }
+  .row .icon { color: var(--label2); display:flex; flex:0 0 auto; }
+  .row .grow { flex:1; min-width:0; }
+  .row .title { font-size:17px; color: var(--label); }
+  .row .sub { font-size:13px; color: var(--label2); margin-top:1px; }
+  .row .val { font-size:17px; color: var(--label2); }
+  .row .title, .row .sub { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .row .val, .row .statustext { flex:0 0 auto; white-space:nowrap; }
+  .row.tappable { transition: background .12s ease; }
+  .row.tappable:active { background: var(--press); }
+  .dot { width:10px; height:10px; border-radius:50%; flex:0 0 auto; }
+  .dot.pulse { animation: dotpulse 2.1s cubic-bezier(.4,0,.6,1) infinite; }
+  @keyframes dotpulse { 0% { box-shadow: 0 0 0 0 rgba(52,199,89,.45); } 70% { box-shadow: 0 0 0 9px rgba(52,199,89,0); } 100% { box-shadow: 0 0 0 0 rgba(52,199,89,0); } }
+  .divider { height:.5px; background: var(--sep); margin-left:16px; }
+  .divider.i50 { margin-left:50px; }
+  .chev { color: var(--label3); display:flex; }
+  .tile { width:29px; height:29px; border-radius:7px; color:#fff; display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
+  .actionrow { min-height:48px; display:flex; align-items:center; justify-content:center; font-size:17px; color: var(--blue); cursor:pointer; transition: background .12s ease; }
+  .actionrow:active { background: var(--press); }
+  /* ---------- controls ---------- */
+  .btn { height:50px; border-radius:12px; display:flex; align-items:center; justify-content:center;
+         font-size:17px; font-weight:600; color:#fff; cursor:pointer; user-select:none;
+         transition: transform .18s cubic-bezier(.34,1.56,.64,1), opacity .12s ease; }
+  .btn:active { transform: scale(.97); opacity:.92; }
+  .btn.red { background: var(--red); }
+  .btn.blue { background: var(--blue); }
+  .seg { display:flex; background: var(--fill); border-radius:9px; padding:2px; position:relative; }
+  .seg .pill { position:absolute; top:2px; bottom:2px; left:0; width:0; border-radius:7px;
+               background: var(--segment); box-shadow: var(--segshadow); z-index:0;
+               transition: transform .3s cubic-bezier(.32,.72,.32,1), width .3s cubic-bezier(.32,.72,.32,1); }
+  .seg .opt { position:relative; z-index:1; flex:1; text-align:center; font-size:13px; font-weight:500;
+              color: var(--label2); padding:6px 2px; border-radius:7px; cursor:pointer;
+              white-space:nowrap; overflow:hidden; transition: color .18s ease; }
+  .seg .opt.on { color: var(--label); font-weight:600; }
+  .chips { display:flex; gap:8px; overflow-x:auto; scrollbar-width:none; margin:0 -16px; padding:2px 16px 5px; }
+  .chips::-webkit-scrollbar { display:none; }
+  .chip { flex:0 0 auto; height:34px; padding:0 16px; border-radius:17px; display:flex; align-items:center;
+          background: var(--fill); color: var(--label); font-size:13px; font-weight:500; cursor:pointer;
+          transition: transform .18s cubic-bezier(.34,1.56,.64,1), background .18s ease, box-shadow .18s ease; }
+  .chip:active { transform: scale(.96); }
+  .chip.on { background: var(--segment); font-weight:600; box-shadow: var(--segshadow); }
+  .search { display:flex; align-items:center; gap:8px; height:40px; border-radius:10px;
+            background: var(--fill); padding:0 10px; color: var(--label3); margin-top:24px; }
+  .search input { flex:1; min-width:0; border:0; outline:none; background:transparent;
+                  font:inherit; font-size:17px; color: var(--label); }
+  .search input::placeholder { color: var(--label2); }
+  .sw { width:51px; height:31px; border-radius:16px; background: var(--fill); position:relative;
+        flex:0 0 auto; cursor:pointer; transition: background .2s ease; }
+  .sw::after { content:''; position:absolute; top:2px; left:2px; width:27px; height:27px; border-radius:50%;
+               background:#fff; box-shadow:0 3px 8px rgba(0,0,0,.15), 0 1px 1px rgba(0,0,0,.16);
+               transition: left .2s ease; }
+  .sw.on { background: var(--green); }
+  .sw.on::after { left:22px; }
+  /* ---------- dashboard pieces ---------- */
+  .statusline { display:flex; align-items:center; gap:10px; }
+  .stitle { font-size:20px; font-weight:600; color: var(--label); letter-spacing:-.2px; }
+  .sdetail { font-size:13px; color: var(--label2); margin-top:1px; }
+  .stats { display:flex; padding:16px 4px; }
+  .stat { flex:1; text-align:center; }
+  .stat .v { font-size:20px; font-weight:600; color: var(--label); }
+  .stat .l { font-size:11px; color: var(--label2); margin-top:2px; }
+  .mono { font-family: var(--mono); }
+  .mono13 { font-family: var(--mono); font-size:13px; color: var(--label2); }
+  .code { background: var(--code); border-radius:10px; padding:12px 14px; font-family: var(--mono);
+          font-size:12px; line-height:18px; color: var(--label); white-space:pre-wrap; word-break:break-word; }
+  .codewrap { padding:12px; }
+  .qrbox { background:#fff; border-radius:10px; padding:8px; display:inline-flex; }
+  canvas.qr { width:150px; height:150px; image-rendering: pixelated; }
+  /* ---------- logs ---------- */
+  .logrow { padding:12px 16px; }
+  .logmeta { display:flex; justify-content:space-between; align-items:center; }
+  .level { font-size:11px; font-weight:600; letter-spacing:.5px; }
+  .lv-info { color: var(--label2); } .lv-tool { color: var(--green); }
+  .lv-request { color: var(--blue); } .lv-error { color: var(--red); }
+  .logmsg { font-size:15px; color: var(--label); margin-top:4px; }
+  /* ---------- tools ---------- */
+  .toolrow .statustext { font-size:13px; font-weight:500; flex:0 0 auto; }
+  .st-perm { color: var(--orange); }
+  .section.tight { margin-top:16px; }
+  .banner { display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:12px;
+            background: var(--warnbg); }
+  .banner .icon { display:flex; flex:0 0 auto; }
+  .banner .grow { flex:1; min-width:0; }
+  .banner .bt { font-size:15px; font-weight:600; color: var(--label); }
+  .banner .bs { font-size:13px; color: var(--label2); margin-top:1px; }
+  /* ---------- tab bar ---------- */
+  .tabbar { position:absolute; left:0; right:0; bottom:0; z-index:5; background: var(--card);
+            border-top:.5px solid var(--sep); padding:7px 8px 24px; display:flex;
+            transition: background .3s ease; }
+  .tab { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px;
+         font-size:10px; font-weight:500; color: var(--label2); cursor:pointer; padding:3px 0; }
+  .tab.on { color: var(--blue); }
+  .tab.on svg { animation: tabpop .34s cubic-bezier(.34,1.56,.64,1); }
+  @keyframes tabpop { 0% { transform: scale(.86); } 55% { transform: scale(1.16); } 100% { transform: scale(1); } }
+  .home { position:absolute; bottom:8px; left:50%; transform:translateX(-50%); width:120px; height:5px;
+          border-radius:3px; background: var(--label); opacity:.9; z-index:6; }
+  footer { max-width:1460px; margin:34px auto 0; font-size:13px; color: var(--label2); text-align:center; }
+</style>
+</head>
+<body>
+  <header class="page-head">
+    <div>
+      <div class="eyebrow">PocketMCP</div>
+      <h1>UI Refresh — Design Preview</h1>
+      <p class="pagesub">Neutral surfaces · system blue accent · Inter typeface · grouped inset lists · light &amp; dark</p>
+    </div>
+    <div class="theme-toggle" id="themeToggle">
+      <button data-theme="light" class="on">Light</button>
+      <button data-theme="dark">Dark</button>
+    </div>
+  </header>
+
+  <div class="tokens">
+    <span class="sw"><i style="background:var(--blue)"></i>Accent</span>
+    <span class="sw"><i style="background:var(--green)"></i>Running</span>
+    <span class="sw"><i style="background:var(--orange)"></i>Attention</span>
+    <span class="sw"><i style="background:var(--red)"></i>Destructive</span>
+    <span class="sw"><i style="background:var(--indigo)"></i>Integration</span>
+    <span class="sw"><i style="background:var(--gray)"></i>Neutral</span>
+    <span class="tag">Inter — 34 / 22 / 20 / 17 / 15 / 13 / 11 / 10 pt · 12 px cards · hairline separators</span>
+  </div>
+
+  <main class="phones" id="phones"></main>
+
+  <footer>
+    Click the tab bar on any phone to walk through all four screens · toggle switches, filters, and search are live.<br/>
+    The app itself follows the system light/dark setting — this preview defaults to light.
+  </footer>
+
+<script>
+const ICONS = {
+  server:   '<rect x="3" y="4" width="18" height="6.5" rx="2"/><rect x="3" y="13.5" width="18" height="6.5" rx="2"/><circle cx="7.4" cy="7.25" r=".9" fill="currentColor" stroke="none"/><circle cx="7.4" cy="16.75" r=".9" fill="currentColor" stroke="none"/>',
+  terminal: '<rect x="3" y="4.5" width="18" height="15" rx="2.6"/><path d="M7.2 9.5l2.8 2.6-2.8 2.6"/><path d="M12.4 14.8h4.4"/>',
+  grid:     '<rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/>',
+  sliders:  '<path d="M4.5 7.5h9"/><circle cx="16.8" cy="7.5" r="2.3"/><path d="M19.5 16.5h-9"/><circle cx="7.2" cy="16.5" r="2.3"/>',
+  phone:    '<rect x="7" y="2.5" width="10" height="19" rx="3"/><path d="M11 18.6h2"/>',
+  launch:   '<path d="M18 13.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5.5"/><path d="M14.5 3H21v6.5"/><path d="M10.5 13.5L21 3"/>',
+  message:  '<path d="M21 15a2 2 0 0 1-2 2H7.5L3.5 21V5a2 2 0 0 1 2-2H19a2 2 0 0 1 2 2z"/>',
+  call:     '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.2 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/>',
+  user:     '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  pin:      '<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>',
+  volume:   '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/>',
+  screen:   '<path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8"/><path d="M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8"/><path d="M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16"/><path d="M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16"/>',
+  bell:     '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',
+  mic:      '<path d="M12 1.5a3 3 0 0 0-3 3v7.5a3 3 0 0 0 6 0V4.5a3 3 0 0 0-3-3z"/><path d="M19 10.5v1.5a7 7 0 0 1-14 0v-1.5"/><path d="M12 20v2.5"/>',
+  zap:      '<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>',
+  key:      '<path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>',
+  share:    '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/>',
+  folder:   '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>',
+  shield:   '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+  code:     '<path d="M16 18l6-6-6-6"/><path d="M8 6l-6 6 6 6"/>',
+  copy:     '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
+  link:     '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+  lock:     '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  wifi:     '<path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><path d="M12 20h.01"/>',
+  cellular: '<path d="M18 20v-9"/><path d="M12 20V4"/><path d="M6 20v-6"/>',
+  search:   '<circle cx="11" cy="11" r="7.5"/><path d="M21 21l-4.35-4.35"/>',
+  chev:     '<path d="M9 18l6-6-6-6"/>',
+  accessibility: '<circle cx="12" cy="5.5" r="2.2"/><path d="M4.5 9.5c2.6.9 5 1.3 7.5 1.3s4.9-.4 7.5-1.3"/><path d="M12 11v4"/><path d="M12 15l-3 6"/><path d="M12 15l3 6"/>',
+  alert:    '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'
+};
+
+const svg = (name, size = 22, sw = 1.7) =>
+  `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">${ICONS[name] || ''}</svg>`;
+
+const TABS = [
+  { id: 'server',   label: 'Server',   icon: 'server' },
+  { id: 'logs',     label: 'Logs',     icon: 'terminal' },
+  { id: 'tools',    label: 'Tools',    icon: 'grid' },
+  { id: 'settings', label: 'Settings', icon: 'sliders' }
+];
+
+const LOG_EVENTS = [
+  { lv: 'INFO',    t: '09:41:02', m: 'Dashboard loaded' },
+  { lv: 'INFO',    t: '09:41:03', m: 'Server start requested on port 8080' },
+  { lv: 'INFO',    t: '09:41:04', m: 'Status update: Running' },
+  { lv: 'INFO',    t: '09:41:04', m: 'mDNS registered: PocketMCP._mcp._tcp' },
+  { lv: 'REQUEST', t: '09:41:18', m: 'POST /mcp · initialize' },
+  { lv: 'TOOL',    t: '09:41:19', m: 'Tool call: device_info (142 ms)' },
+  { lv: 'REQUEST', t: '09:41:26', m: 'POST /mcp · tools/list' },
+  { lv: 'TOOL',    t: '09:41:31', m: 'Tool call: notifications (89 ms)' },
+  { lv: 'ERROR',   t: '09:41:44', m: 'Auth failed from 192.0.2.212 (1/10)' },
+  { lv: 'REQUEST', t: '09:42:02', m: 'POST /mcp · tools/call' },
+  { lv: 'TOOL',    t: '09:42:03', m: 'Tool call: shell (1.2 s)' },
+  { lv: 'INFO',    t: '09:42:12', m: 'Endpoint copied to clipboard' }
+];
+
+const TOTAL_TOOLS = 33;
+const TOOLS = [
+  { n: 'Device Info',       d: 'Battery, memory, model, OS version', i: 'phone',    cat: 'system',        s: 'Ready' },
+  { n: 'Shell',             d: 'Execute secure shell commands',      i: 'terminal', cat: 'system',        s: 'Ready' },
+  { n: 'Launch App',        d: 'Open any installed application',     i: 'launch',   cat: 'system',        s: 'Ready' },
+  { n: 'Send Message',      d: 'SMS text messaging',                 i: 'message',  cat: 'comm',          s: 'Ready' },
+  { n: 'Make Call',         d: 'Initiate phone calls',               i: 'call',     cat: 'comm',          s: 'Ready' },
+  { n: 'Search Contacts',   d: 'Query device contact list',          i: 'user',     cat: 'comm',          s: 'Permission Required' },
+  { n: 'Location',          d: 'GPS and network location',           i: 'pin',      cat: 'sensors',       s: 'Ready' },
+  { n: 'Volume',            d: 'Control system audio levels',        i: 'volume',   cat: 'sensors',       s: 'Ready' },
+  { n: 'Screenshot',        d: 'Capture screen content',             i: 'screen',   cat: 'sensors',       s: 'Permission Required' },
+  { n: 'Notifications',     d: 'Read active notifications',          i: 'bell',     cat: 'system',        s: 'Ready' },
+  { n: 'Voice Record',      d: 'Record audio from microphone',       i: 'mic',      cat: 'media',         s: 'Ready' },
+  { n: 'Human Command',     d: 'Natural language command router',    i: 'zap',      cat: 'auto',          s: 'Permission Required' }
+];
+
+const CONFIG_JSON = `{
+  "mcpServers": {
+    "pocketmcp": {
+      "url": "http://192.0.2.137:8080/mcp",
+      "headers": { "X-API-Key": "pcm_9f3a…4e21" }
+    }
+  }
+}`;
+
+/* ---------------- screen renderers ---------------- */
+
+function row(iconName, title, value, opts = {}) {
+  const iconHtml = iconName ? `<span class="icon">${svg(iconName, 22, 1.6)}</span>` : '';
+  const valHtml = value ? `<span class="${opts.mono ? 'mono13' : 'val'}" ${opts.valStyle ? `style="${opts.valStyle}"` : ''}>${value}</span>` : '';
+  return `<div class="row">${iconHtml}<div class="grow"><div class="title">${title}</div>${opts.sub ? `<div class="sub">${opts.sub}</div>` : ''}</div>${valHtml}</div>`;
+}
+
+function tileRow(iconName, tileColor, title, sub, trailing) {
+  return `<div class="row">
+    <span class="tile" style="background:${tileColor}">${svg(iconName, 17, 1.9)}</span>
+    <div class="grow"><div class="title">${title}</div>${sub ? `<div class="sub" ${sub.style ? `style="${sub.style}"` : ''}>${sub.text}</div>` : ''}</div>
+    ${trailing || ''}
+  </div>`;
+}
+
+function screenServer() {
+  const stats = [['128', 'Requests'], ['47', 'Tool Calls'], ['2', 'Errors'], ['3', 'Clients']];
+  return `
+  <div class="lt">PocketMCP</div>
+  <div class="ltsub">Mobile MCP Server</div>
+
+  <div class="section"><div class="card pad" style="display:flex;flex-direction:column;gap:16px">
+    <div class="statusline">
+      <span class="dot pulse" style="background:var(--green)"></span>
+      <div><div class="stitle">Running</div><div class="sdetail">Listening for MCP connections</div></div>
+    </div>
+    <div class="btn red">Stop Server</div>
+  </div></div>
+
+  <div class="section">
+    <div class="sh">Server Stats</div>
+    <div class="card">
+      ${row(null, 'Uptime', '<span style="font-family:var(--mono);font-size:16px">00:02:37</span>')}
+      <div class="divider"></div>
+      <div class="stats">
+        ${stats.map(([v, l]) => `<div class="stat"><div class="v">${v}</div><div class="l">${l}</div></div>`).join('')}
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sh">Connection</div>
+    <div class="card">
+      ${row('wifi', 'Network', 'WiFi')}<div class="divider i50"></div>
+      ${row('wifi', 'Local IP', '192.0.2.137')}<div class="divider i50"></div>
+      ${row('link', 'Endpoint', '192.0.2.137:8080/mcp', { mono: true })}<div class="divider i50"></div>
+      ${row('lock', 'Authentication', '<span style="color:var(--green)">Enabled</span>', { valStyle: '' })}
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sh">Configuration</div>
+    <div class="card">
+      ${row(null, 'Port', '8080')}<div class="divider"></div>
+      ${row(null, 'API Key', '<span class="mono13">pcm_9f3a…4e21</span>', { valStyle: 'font-size:15px' })}<div class="divider"></div>
+      <div class="actionrow">Generate New Key</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sh">Quick Connect</div>
+    <div class="card">
+      <div class="codewrap"><div class="code">${CONFIG_JSON.replace(/</g, '&lt;')}</div></div>
+      <div class="divider"></div>
+      <div class="row"><span class="icon">${svg('copy', 22, 1.6)}</span><div class="grow"><div class="title">Copy MCP client config</div></div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sh">Scan to Connect</div>
+    <div class="card pad" style="display:flex;flex-direction:column;align-items:center;gap:12px">
+      <span class="qrbox"><canvas class="qr" width="300" height="300"></canvas></span>
+      <div class="sub" style="font-size:13px;color:var(--label2)">Scan with any MCP client to connect</div>
+    </div>
+  </div>`;
+}
+
+function screenLogs() {
+  const runtime = LOG_EVENTS.slice(-8).map(e => `[${e.t}] ${e.m}`).join('\n');
+  const shown = LOG_EVENTS.slice().reverse().slice(0, 6);
+  const lvClass = { INFO: 'lv-info', TOOL: 'lv-tool', REQUEST: 'lv-request', ERROR: 'lv-error' };
+  return `
+  <div style="display:flex;align-items:center;justify-content:space-between">
+    <div><div class="lt">Logs</div><div class="ltsub">12 events</div></div>
+    <div style="font-size:17px;color:var(--red);padding:10px 12px;min-height:44px;display:flex;align-items:center;cursor:pointer">Clear</div>
+  </div>
+
+  <div class="section">
+    <div class="sh">Runtime</div>
+    <div class="card"><div class="codewrap"><div class="code">${runtime.replace(/</g, '&lt;')}</div></div></div>
+  </div>
+
+  <div class="section">
+    <div class="seg" data-filter="logs">
+      <div class="opt on" data-f="all">All</div>
+      <div class="opt" data-f="errors">Errors</div>
+      <div class="opt" data-f="tools">Tools</div>
+      <div class="opt" data-f="requests">Requests</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sh">Events</div>
+    <div class="card" id="eventsCard">
+      ${shown.map((e, i) => `
+        <div class="logrow" data-level="${e.lv.toLowerCase()}">
+          <div class="logmeta"><span class="level ${lvClass[e.lv]}">${e.lv}</span><span class="level" style="color:var(--label3)">${e.t}</span></div>
+          <div class="logmsg">${e.m}</div>
+        </div>${i < shown.length - 1 ? '<div class="divider"></div>' : ''}`).join('')}
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="card">
+      <div class="row"><div class="grow"><div class="title">View All Notification History</div></div><span class="chev">${svg('chev', 18, 2.1)}</span></div>
+    </div>
+  </div>`;
+}
+
+function screenTools() {
+  const needSetup = TOOLS.filter(t => t.s !== 'Ready').length;
+  return `
+  <div class="lt">Tools</div>
+  <div class="ltsub tools-sub">${TOTAL_TOOLS} tools available</div>
+
+  <div class="search">
+    ${svg('search', 20, 1.9)}
+    <input id="toolSearch" type="text" placeholder="Search tools" autocomplete="off" />
+  </div>
+
+  <div class="section tight">
+    <div class="chips" data-filter="tools">
+      <div class="chip on" data-c="all">All</div>
+      <div class="chip" data-c="system">System</div>
+      <div class="chip" data-c="comm">Comm</div>
+      <div class="chip" data-c="sensors">Sensors</div>
+      <div class="chip" data-c="media">Media</div>
+      <div class="chip" data-c="auto">Auto</div>
+    </div>
+  </div>
+
+  <div class="section"><div class="banner">
+    <span class="icon" style="color:var(--orange)">${svg('alert', 20, 1.9)}</span>
+    <div class="grow"><div class="bt">Permissions needed</div><div class="bs">${needSetup} tools require setup to work</div></div>
+  </div></div>
+
+  <div class="section">
+    <div class="card" id="toolsCard">
+      ${TOOLS.map((t, i) => `
+        <div class="row toolrow" data-tool="${t.n.toLowerCase()} ${t.d.toLowerCase()}" data-cat="${t.cat}">
+          <span class="icon">${svg(t.i, 22, 1.6)}</span>
+          <div class="grow"><div class="title">${t.n}</div><div class="sub">${t.d}</div></div>
+          ${t.s !== 'Ready' ? `<span class="statustext st-perm">Setup</span>` : ''}
+        </div>${i < TOOLS.length - 1 ? '<div class="divider i50"></div>' : ''}`).join('')}
+    </div>
+  </div>`;
+}
+
+function screenSettings() {
+  return `
+  <div class="lt">Settings</div>
+
+  <div class="section">
+    <div class="sh">Authentication</div>
+    <div class="card">
+      ${tileRow('key', 'var(--green)', 'API Key Auth', { text: 'Require key for MCP requests' }, '<div class="sw on"></div>')}
+      <div class="divider i50"></div>
+      ${tileRow('share', 'var(--indigo)', 'Tailscale', { text: 'Enable Tailscale networking' }, '<div class="sw"></div>')}
+      <div class="divider i50"></div>
+      ${tileRow('key', 'var(--gray)', 'Manage Keys', { text: 'Copy current API key' }, `<span class="chev">${svg('chev', 18, 2.1)}</span>`)}
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sh">System Permissions</div>
+    <div class="card">
+      ${tileRow('accessibility', 'var(--blue)', 'Accessibility Service', { text: 'Enabled in settings', style: 'color:var(--green)' }, `<span class="chev">${svg('chev', 18, 2.1)}</span>`)}
+      <div class="divider i50"></div>
+      ${tileRow('bell', 'var(--red)', 'Notification Access', { text: 'Read notification stream' }, '<div class="sw on"></div>')}
+      <div class="divider i50"></div>
+      ${tileRow('folder', 'var(--orange)', 'File Storage', { text: 'Access media and documents' }, '<div class="sw on"></div>')}
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sh">Advanced</div>
+    <div class="card">
+      ${tileRow('shield', 'var(--orange)', 'Safety Filter', { text: 'Mode: Balanced', style: 'color:var(--orange)' }, `<span class="chev">${svg('chev', 18, 2.1)}</span>`)}
+      <div class="divider i50"></div>
+      ${tileRow('code', 'var(--gray)', 'Developer Mode', { text: 'Show debug information' }, '<div class="sw"></div>')}
+    </div>
+  </div>
+
+  <div style="text-align:center;font-size:11px;color:var(--label2);margin:28px 0 8px">PocketMCP v1.0.0-beta.2</div>`;
+}
+
+/* ---------------- phone assembly ---------------- */
+
+const RENDERERS = { server: screenServer, logs: screenLogs, tools: screenTools, settings: screenSettings };
+
+function statusBar() {
+  return `<div class="status">
+    <span>9:41</span>
+    <span class="icons">
+      <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1" opacity=".4"/></svg>
+      <svg width="16" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><path d="M12 20h.01"/></svg>
+      <svg width="24" height="12" viewBox="0 0 25 12"><rect x="0.5" y="0.5" width="21" height="11" rx="3.5" fill="none" stroke="currentColor" opacity=".4"/><rect x="2.2" y="2.2" width="15" height="7.6" rx="2" fill="currentColor"/><path d="M23.5 4v4c.8-.3 1.2-.9 1.2-2s-.4-1.7-1.2-2z" fill="currentColor" opacity=".5"/></svg>
+    </span>
+  </div>`;
+}
+
+function buildPhone(activeId) {
+  const screens = TABS.map((t, i) => `<div class="scrscreen ${t.id === activeId ? 'on' : ''}" data-screen="${t.id}">${RENDERERS[t.id]()}</div>`).join('');
+  const tabs = TABS.map(t => `<div class="tab ${t.id === activeId ? 'on' : ''}" data-tab="${t.id}">${svg(t.icon, 24, 1.7)}<span>${t.label}</span></div>`).join('');
+  return `<div class="island"></div>${statusBar()}${screens}
+    <div class="tabbar">${tabs}</div><div class="home"></div>`;
+}
+
+const phonesRoot = document.getElementById('phones');
+const initial = ['server', 'logs', 'tools', 'settings'];
+phonesRoot.innerHTML = initial.map(id =>
+  `<div class="phone"><div class="screen">${buildPhone(id)}</div></div>`).join('');
+
+/* iOS press highlight: tappable rows get the subtle press state */
+const TAPPABLE_TITLES = ['Local IP', 'Endpoint', 'Copy MCP client config', 'View All Notification History', 'Manage Keys', 'Accessibility Service', 'Safety Filter'];
+document.querySelectorAll('.row').forEach(r => {
+  const t = r.querySelector('.title');
+  if (t && TAPPABLE_TITLES.includes(t.textContent.trim())) r.classList.add('tappable');
+});
+
+/* sliding segmented-control pill */
+function positionSegPill(seg, animate) {
+  const pill = seg.querySelector('.pill');
+  const on = seg.querySelector('.opt.on');
+  if (!pill || !on) return;
+  if (!animate) pill.style.transition = 'none';
+  pill.style.width = on.offsetWidth + 'px';
+  pill.style.transform = `translateX(${on.offsetLeft}px)`;
+  if (!animate) { void pill.offsetWidth; pill.style.transition = ''; }
+}
+document.querySelectorAll('.seg').forEach(seg => {
+  const pill = document.createElement('div');
+  pill.className = 'pill';
+  seg.prepend(pill);
+  positionSegPill(seg, false);
+});
+
+/* stat numbers count up on load (rAF is paused while the pane is hidden, so wait for visibility) */
+function runStatCountUps() {
+  document.querySelectorAll('.stat .v').forEach(el => {
+    const target = parseInt(el.textContent, 10);
+    if (isNaN(target)) return;
+    el.textContent = '0';
+    const start = performance.now(), dur = 900;
+    const step = now => {
+      const p = Math.min(1, (now - start) / dur);
+      el.textContent = Math.round((1 - Math.pow(1 - p, 3)) * target).toString();
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  });
+}
+if (document.hidden) {
+  document.addEventListener('visibilitychange', runStatCountUps, { once: true });
+} else {
+  runStatCountUps();
+}
+
+/* ---------------- interactions ---------------- */
+
+document.addEventListener('click', (e) => {
+  const themeBtn = e.target.closest('#themeToggle button');
+  if (themeBtn) {
+    document.documentElement.className = 'theme-' + themeBtn.dataset.theme;
+    document.querySelectorAll('#themeToggle button').forEach(b => b.classList.toggle('on', b === themeBtn));
+    return;
+  }
+  const sw = e.target.closest('.sw');
+  if (sw) { sw.classList.toggle('on'); return; }
+
+  const chip = e.target.closest('.chip');
+  if (chip) {
+    const group = chip.closest('.chips');
+    group.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c === chip));
+    chip.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    applyFilters(chip.closest('.scrscreen'));
+    return;
+  }
+  const opt = e.target.closest('.seg .opt');
+  if (opt) {
+    const seg = opt.closest('.seg');
+    seg.querySelectorAll('.opt').forEach(o => o.classList.toggle('on', o === opt));
+    positionSegPill(seg, true);
+    applyFilters(seg.closest('.scrscreen'));
+    return;
+  }
+  const tab = e.target.closest('.tab');
+  if (tab) {
+    const screenEl = tab.closest('.screen');
+    const id = tab.dataset.tab;
+    tab.parentElement.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t === tab));
+    screenEl.querySelectorAll('.scrscreen').forEach(s => s.classList.toggle('on', s.dataset.screen === id));
+    // a freshly shown screen can finally measure its segmented-control pills
+    const active = screenEl.querySelector('.scrscreen.on');
+    if (active) active.querySelectorAll('.seg').forEach(s => positionSegPill(s, false));
+    return;
+  }
+});
+
+document.addEventListener('input', (e) => {
+  if (e.target.id === 'toolSearch') applyFilters(e.target.closest('.scrscreen'));
+});
+
+function applyFilters(screenEl) {
+  if (!screenEl) return;
+  const filter = screenEl.querySelector('[data-filter]');
+  if (!filter) return;
+  if (filter.dataset.filter === 'tools') {
+    const cat = filter.querySelector('.on').dataset.c;
+    const q = (screenEl.querySelector('#toolSearch')?.value || '').trim().toLowerCase();
+    screenEl.querySelectorAll('.toolrow').forEach(r => {
+      const catOk = cat === 'all' || r.dataset.cat === cat;
+      const qOk = !q || r.dataset.tool.includes(q);
+      r.style.display = catOk && qOk ? '' : 'none';
+    });
+    // collapse stray dividers when rows are hidden: hide all dividers that follow hidden rows
+    const rows = [...screenEl.querySelectorAll('.toolrow')];
+    screenEl.querySelectorAll('#toolsCard .divider').forEach((d, i) => {
+      const row = rows[i];
+      d.style.display = row && row.style.display !== 'none' ? '' : 'none';
+    });
+    const visible = rows.filter(r => r.style.display !== 'none').length;
+    const sub = screenEl.querySelector('.tools-sub');
+    if (sub) {
+      sub.textContent = (!q && cat === 'all')
+        ? `${TOTAL_TOOLS} tools available`
+        : `${visible} of ${TOTAL_TOOLS} tools`;
+    }
+  } else if (filter.dataset.filter === 'logs') {
+    const f = filter.querySelector('.on').dataset.f;
+    screenEl.querySelectorAll('.logrow').forEach(r => {
+      const lv = r.dataset.level;
+      const ok = f === 'all'
+        || (f === 'errors' && lv === 'error')
+        || (f === 'tools' && lv === 'tool')
+        || (f === 'requests' && lv === 'request');
+      r.style.display = ok ? '' : 'none';
+    });
+    const rows = [...screenEl.querySelectorAll('.logrow')];
+    screenEl.querySelectorAll('#eventsCard .divider').forEach((d, i) => {
+      d.style.display = rows[i] && rows[i].style.display !== 'none' ? '' : 'none';
+    });
+  }
+}
+
+/* pseudo-QR — deterministic, decorative only */
+function drawQR(canvas) {
+  const ctx = canvas.getContext('2d');
+  const N = 25, cell = canvas.width / N;
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#000';
+  let seed = 42;
+  const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+  const finder = (x, y) => {
+    ctx.fillRect(x * cell, y * cell, 7 * cell, 7 * cell);
+    ctx.fillStyle = '#fff'; ctx.fillRect((x + 1) * cell, (y + 1) * cell, 5 * cell, 5 * cell);
+    ctx.fillStyle = '#000'; ctx.fillRect((x + 2) * cell, (y + 2) * cell, 3 * cell, 3 * cell);
+  };
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const inFinder = (x < 9 && y < 9) || (x > N - 10 && y < 9) || (x < 9 && y > N - 10);
+    if (!inFinder && rnd() > 0.52) ctx.fillRect(x * cell, y * cell, cell, cell);
+  }
+  finder(0, 0); finder(N - 7, 0); finder(0, N - 7);
+}
+document.querySelectorAll('canvas.qr').forEach(drawQR);
+</script>
+</body>
+</html>

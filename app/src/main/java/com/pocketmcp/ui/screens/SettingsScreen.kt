@@ -1,26 +1,46 @@
 package com.pocketmcp.ui.screens
 
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.rounded.Accessibility
+import androidx.compose.material.icons.rounded.Code
+import androidx.compose.material.icons.rounded.FolderOpen
+import androidx.compose.material.icons.rounded.Key
+import androidx.compose.material.icons.rounded.NetworkCheck
+import androidx.compose.material.icons.rounded.NotificationsActive
+import androidx.compose.material.icons.rounded.Shield
+import androidx.compose.material.icons.rounded.VpnKey
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import com.pocketmcp.ui.components.*
-import com.pocketmcp.ui.theme.*
+import com.pocketmcp.BuildConfig
+import com.pocketmcp.ui.components.GroupedCard
+import com.pocketmcp.ui.components.GroupedSection
+import com.pocketmcp.ui.components.ListRow
+import com.pocketmcp.ui.components.RowChevron
+import com.pocketmcp.ui.components.RowTile
+import com.pocketmcp.ui.components.sectionEntrance
+import com.pocketmcp.ui.theme.AppTheme
+import com.pocketmcp.ui.theme.BlueLight
+import com.pocketmcp.ui.theme.GrayLight
+import com.pocketmcp.ui.theme.GreenLight
+import com.pocketmcp.ui.theme.IndigoLight
+import com.pocketmcp.ui.theme.OrangeLight
+import com.pocketmcp.ui.theme.RedLight
 
 @Composable
 fun SettingsScreen(
@@ -42,172 +62,121 @@ fun SettingsScreen(
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
+    val colors = AppTheme.colors
 
     Column(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
-            .padding(horizontal = 20.dp)
-            .padding(top = 24.dp, bottom = 100.dp),
+            .padding(horizontal = 16.dp)
+            .padding(top = 12.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        // Header
-        Column {
-            Text(
-                text = "Settings",
-                style = MaterialTheme.typography.headlineMedium,
-                color = NeuralOnBackground
-            )
-            Text(
-                text = "Configure server and permissions",
-                style = MaterialTheme.typography.bodyMedium,
-                color = NeuralOnSurfaceVariant
-            )
-        }
+        Text(
+            text = "Settings",
+            style = MaterialTheme.typography.headlineLarge,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.sectionEntrance(0)
+        )
 
-        // Authentication Section
-        SettingsSection(
-            title = "Authentication",
-            accentColor = NeuralSuccess,
-            icon = Icons.Rounded.Security
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        GroupedSection(title = "Authentication", modifier = Modifier.sectionEntrance(1)) {
+            GroupedCard {
                 SettingsToggleRow(
                     title = "API Key Auth",
                     subtitle = "Require key for MCP requests",
                     icon = Icons.Rounded.VpnKey,
+                    tileColor = GreenLight,
                     checked = isApiAuthEnabled,
-                    onCheckedChange = onToggleApiAuth
+                    onCheckedChange = onToggleApiAuth,
+                    showDivider = true
                 )
                 SettingsToggleRow(
                     title = "Tailscale",
                     subtitle = "Enable Tailscale networking",
                     icon = Icons.Rounded.NetworkCheck,
+                    tileColor = IndigoLight,
                     checked = isTailscaleEnabled,
-                    onCheckedChange = onToggleTailscale
+                    onCheckedChange = onToggleTailscale,
+                    showDivider = true
                 )
                 SettingsActionRow(
                     title = "Manage Keys",
                     subtitle = "Copy current API key",
                     icon = Icons.Rounded.Key,
-                    accentColor = NeuralSuccess,
+                    tileColor = GrayLight,
                     onClick = onManageKeys
                 )
             }
         }
 
-        // System Permissions Section
-        SettingsSection(
-            title = "System Permissions",
-            accentColor = NeuralPrimary,
-            icon = Icons.Rounded.AdminPanelSettings
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        GroupedSection(title = "System Permissions", modifier = Modifier.sectionEntrance(2)) {
+            GroupedCard {
                 SettingsActionRow(
                     title = "Accessibility Service",
                     subtitle = accessibilityState,
+                    subtitleColor = if (accessibilityState.contains("Enabled")) colors.success else colors.warning,
                     icon = Icons.Rounded.Accessibility,
-                    accentColor = if (accessibilityState.contains("Enabled")) NeuralSuccess else NeuralWarning,
-                    onClick = onOpenAccessibilitySettings
+                    tileColor = BlueLight,
+                    onClick = onOpenAccessibilitySettings,
+                    showDivider = true
                 )
                 SettingsToggleRow(
                     title = "Notification Access",
                     subtitle = "Read notification stream",
                     icon = Icons.Rounded.NotificationsActive,
+                    tileColor = RedLight,
                     checked = isNotificationAccessEnabled,
-                    onCheckedChange = { onToggleNotificationAccess() }
+                    onCheckedChange = { onToggleNotificationAccess() },
+                    showDivider = true
                 )
                 SettingsToggleRow(
                     title = "File Storage",
                     subtitle = "Access media and documents",
                     icon = Icons.Rounded.FolderOpen,
+                    tileColor = OrangeLight,
                     checked = isFileStorageEnabled,
                     onCheckedChange = onToggleFileStorage
                 )
             }
         }
 
-        // Advanced Section
-        SettingsSection(
-            title = "Advanced",
-            accentColor = NeuralTertiary,
-            icon = Icons.Rounded.Tune
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        GroupedSection(title = "Advanced", modifier = Modifier.sectionEntrance(3)) {
+            GroupedCard {
                 SettingsActionRow(
                     title = "Safety Filter",
                     subtitle = "Mode: $safetyFilterMode",
-                    icon = Icons.Rounded.Shield,
-                    accentColor = when (safetyFilterMode) {
-                        "Strict" -> NeuralSuccess
-                        "Balanced" -> NeuralWarning
-                        else -> NeuralError
+                    subtitleColor = when (safetyFilterMode) {
+                        "Strict" -> colors.success
+                        "Balanced" -> colors.warning
+                        else -> MaterialTheme.colorScheme.error
                     },
-                    onClick = onCycleSafetyFilter
+                    icon = Icons.Rounded.Shield,
+                    tileColor = OrangeLight,
+                    onClick = onCycleSafetyFilter,
+                    showDivider = true
                 )
                 SettingsToggleRow(
                     title = "Developer Mode",
                     subtitle = "Show debug information",
                     icon = Icons.Rounded.Code,
+                    tileColor = GrayLight,
                     checked = isDeveloperModeEnabled,
                     onCheckedChange = onToggleDeveloperMode
                 )
             }
         }
 
-        // Version footer
         Box(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .sectionEntrance(4),
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "PocketMCP v0.2.6",
+                text = "PocketMCP v${BuildConfig.VERSION_NAME}",
                 style = MaterialTheme.typography.labelSmall,
-                color = NeuralOnSurfaceMuted
+                color = colors.secondaryLabel
             )
-        }
-    }
-}
-
-@Composable
-private fun SettingsSection(
-    title: String,
-    accentColor: Color,
-    icon: ImageVector,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .background(accentColor.copy(alpha = 0.12f), RoundedCornerShape(10.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = accentColor,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = NeuralOnBackground
-            )
-        }
-
-        GlassCard(
-            modifier = Modifier.fillMaxWidth(),
-            active = false,
-            cornerRadius = 20.dp,
-            contentPadding = PaddingValues(8.dp)
-        ) {
-            Column(content = content)
         }
     }
 }
@@ -217,56 +186,24 @@ private fun SettingsToggleRow(
     title: String,
     subtitle: String,
     icon: ImageVector,
+    tileColor: Color,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
+    showDivider: Boolean = false
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .clickable { onCheckedChange(!checked) }
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .background(NeuralSurfaceHighlight.copy(alpha = 0.5f), RoundedCornerShape(12.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = if (checked) NeuralSuccess else NeuralOnSurfaceMuted,
-                modifier = Modifier.size(20.dp)
+    ListRow(
+        leading = { RowTile(icon, tileColor) },
+        title = title,
+        subtitle = subtitle,
+        trailing = {
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+                colors = iosSwitchColors()
             )
-        }
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyMedium,
-                color = NeuralOnSurface
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = NeuralOnSurfaceVariant
-            )
-        }
-
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = NeuralSuccess,
-                checkedTrackColor = NeuralSuccess.copy(alpha = 0.3f),
-                uncheckedThumbColor = NeuralOnSurfaceMuted,
-                uncheckedTrackColor = NeuralSurfaceHighlight
-            )
-        )
-    }
+        },
+        showDivider = showDivider
+    )
 }
 
 @Composable
@@ -274,50 +211,28 @@ private fun SettingsActionRow(
     title: String,
     subtitle: String,
     icon: ImageVector,
-    accentColor: Color,
-    onClick: () -> Unit
+    tileColor: Color,
+    onClick: () -> Unit,
+    subtitleColor: Color? = null,
+    showDivider: Boolean = false
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .clickable { onClick() }
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .background(accentColor.copy(alpha = 0.12f), RoundedCornerShape(12.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = accentColor,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyMedium,
-                color = NeuralOnSurface
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = accentColor
-            )
-        }
-
-        Icon(
-            imageVector = Icons.Rounded.ChevronRight,
-            contentDescription = null,
-            tint = NeuralOnSurfaceMuted,
-            modifier = Modifier.size(20.dp)
-        )
-    }
+    ListRow(
+        leading = { RowTile(icon, tileColor) },
+        title = title,
+        subtitle = subtitle,
+        subtitleColor = subtitleColor,
+        trailing = { RowChevron() },
+        showDivider = showDivider,
+        onClick = onClick
+    )
 }
+
+@Composable
+private fun iosSwitchColors() = SwitchDefaults.colors(
+    checkedThumbColor = Color.White,
+    checkedTrackColor = AppTheme.colors.success,
+    checkedBorderColor = Color.Transparent,
+    uncheckedThumbColor = Color.White,
+    uncheckedTrackColor = AppTheme.colors.fieldFill,
+    uncheckedBorderColor = Color.Transparent
+)
