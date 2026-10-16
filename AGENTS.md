@@ -105,7 +105,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ./gradlew clean
 ```
 
-A pre-release APK may be present at the repo root (`PocketMCP-debug.apk`) as a locally built artifact; it is untracked (`.gitignore` excludes `*.apk`).
+A pre-release APK is committed at the repo root (`PocketMCP-debug.apk`) and updated as builds ship (~25 MB per version in history); keep committed binaries free of personal data.
 
 ### Node.js Bridge
 
@@ -272,13 +272,24 @@ Conventions:
 ## Deployment / Distribution
 
 - **APK builds** are produced manually via `./gradlew assembleDebug`.
-- Release artifacts are distributed via GitHub Releases; a locally built `PocketMCP-debug.apk` may exist at the repo root but is not tracked by git.
-- GitHub Releases are used for beta builds (see `README.md`).
+- `PocketMCP-debug.apk` is committed at the repo root as the tester download and updated with shipped builds (see `README.md`). Committed binaries are publicly readable — verify no personal strings inside before shipping.
+- Release artifacts are distributed via GitHub Releases; beta builds are announced there.
+- **In-app updates are self-hosted**: the app ships with no update URL (`UpdateChecker.DEFAULT_SOURCE_URL` is empty by design). Users set their own manifest URL at runtime in Settings → App Updates; it is stored only on the device. Manifest shape: `{"versionName", "versionCode", "apkUrl", "notes"}`; the downloaded APK goes to the system package installer.
 - CI (`.github/workflows/ci.yml`) builds the debug APK and runs unit tests on every push/PR. There is no Play Store integration or automated signing configuration yet.
 
 ---
 
 ## Development Guidelines
+
+### Machine-Local Configuration (Never Commit)
+
+Personal values belong outside the repository:
+
+- MCP connection profile → `~/.pocketmcp.json` (written by `mcp-bridge/setup.mjs`; `scripts/pocket.mjs` reads it at runtime).
+- Android SDK path → `local.properties` (gitignored).
+- In-app update source URL → entered on the device at Settings → App Updates.
+
+Before committing any artifact (especially `PocketMCP-debug.apk`), verify it contains no personal strings.
 
 ### Adding a New Tool
 

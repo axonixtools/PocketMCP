@@ -38,6 +38,7 @@ This project turns an Android device into a [Model Context Protocol (MCP)](https
   # or one-command setup for AI coding tools:
   cd mcp-bridge && node setup.mjs
   ```
+- **Instant command lane (no LLM)**: `node scripts/pocket.mjs "torch on"` — local phrase routing with chains (`pocket "torch on and battery"`); `node scripts/pocket.mjs help` prints the cheat sheet. Reads `~/.pocketmcp.json`.
 
 ## Development Conventions
 
@@ -66,8 +67,10 @@ This project turns an Android device into a [Model Context Protocol (MCP)](https
 - `AGENTS.md`: An exhaustive technical guide specifically for AI agents.
 - `README.md`: General project documentation and user guide.
 - `mcp-bridge/`: Node.js bridge for stdio-only MCP clients.
+- `scripts/pocket.mjs`: instant phrase runner (local intent library; no desktop AI in the loop).
 
 ## Important Notes for Gemini CLI
 - **Emulator Connectivity**: When running on an emulator, use `127.0.0.1:8080` with ADB port forwarding, not the emulator's internal IP (`10.0.2.15`).
 - **Foreground Service**: The server's lifecycle is tied to `McpServerService`.
 - **Accessibility**: Most automation tools (`tap`, `scroll`, `whatsapp_automation`) require the Accessibility Service to be manually enabled in Android Settings.
+- **Machine-local config (never commit)**: personal endpoints/keys live in `~/.pocketmcp.json` and on-device app settings; the in-app updater has no baked-in URL. Committed files (including debug APKs) are publicly readable.

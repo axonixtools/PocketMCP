@@ -20,7 +20,7 @@ Tab switching, staggered content reveals, log filters, the sliding segmented con
 ## Download (Testing Pre-release)
 
 - **Latest debug build:** [`PocketMCP-debug.apk`](./PocketMCP-debug.apk) (v1.0.0-beta.8) — install over USB with `adb install -r PocketMCP-debug.apk`
-- **In-app updates:** after the first manual install, new builds are installed from Settings → App Updates (checks a JSON manifest and hands the APK to the system installer). The MCP server auto-resumes after each update.
+- **In-app updates:** after the first manual install, new builds are installed from Settings → App Updates (checks a JSON manifest and hands the APK to the system installer). The MCP server auto-resumes after each update. The update source is **fully self-hosted** — the app ships with no URL; point it at any manifest you control.
 - Previous tagged release: [v1.0.0-beta.1](https://github.com/axonixtools/PocketMCP/releases/tag/v1.0.0-beta.1)
 - This build is marked as pre-release and may contain bugs while active development continues.
 
@@ -158,6 +158,7 @@ A static HTML replica of all four screens (with a live light/dark toggle) lives 
 - Shell tool blocks high-risk commands and enforces timeout/output limits (best-effort filter, not a sandbox).
 - File reads are restricted to app storage and external storage roots.
 - Loopback URLs are blocked in `http_request`.
+- The in-app updater ships with no built-in endpoint: it only fetches manifest URLs you configure.
 - **Accessibility Service**: Required for advanced automation features.
 - **Notification Access**: Required for real-time notification monitoring.
 
@@ -410,6 +411,21 @@ python3 pocket_mcp_client.py 192.0.2.100:8080 your-api-key \
   --args '{"app":"whatsapp","phone_number":"+15551234567","message":"hello from desktop"}'
 ```
 
+## Instant command lane (no LLM)
+
+`scripts/pocket.mjs` (Node 20+, zero dependencies) routes everyday phrases straight to tool calls — no AI in the loop, one HTTP request, typically a few hundred milliseconds on a warm LAN:
+
+```bash
+node scripts/pocket.mjs "torch on"
+node scripts/pocket.mjs "torch on and open youtube"     # chains: "and" / "then" / ";" / ","
+node scripts/pocket.mjs "find my phone"
+node scripts/pocket.mjs "call alex"
+node scripts/pocket.mjs help                            # full phrase cheat sheet
+node scripts/pocket.mjs --dry-run "lock the phone, torch on"
+```
+
+It reads the connection profile written by `setup.mjs` (`~/.pocketmcp.json`); anything it doesn't recognize is forwarded to the phone's on-device NLU (`human_command`) in the same round trip — still no desktop model involved.
+
 ## Development
 
 ### Tech Stack
@@ -493,6 +509,7 @@ Some tools require Android special permissions or services:
 - Shell command restrictions with timeout/output limits
 - File-read path restrictions
 - Loopback URL blocking for `http_request`
+- No built-in update endpoint — the in-app updater only fetches manifests you configure
 
 ## Reliability Notes
 
