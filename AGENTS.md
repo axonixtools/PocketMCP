@@ -48,7 +48,7 @@ phone-mcp/
 
 ### Companion Projects in Repo
 
-- **`mcp-bridge/`** — Node.js ES module (`type: "module"`). Bridges stdio MCP transport to PocketMCP's HTTP endpoint. Uses `@modelcontextprotocol/sdk`, `ws`, and `bonjour-service` for mDNS discovery.
+- **`mcp-bridge/`** — Node.js ES module (`type: "module"`), **zero runtime dependencies** (Node 20+ stdlib only). `bridge.mjs` proxies stdio MCP transport to the phone's Streamable HTTP endpoint (stdlib mDNS discovery, connection profile at `~/.pocketmcp.json`, tool cache, session repair). `setup.mjs` is the one-command wizard/doctor/config writer for OpenCode, Claude Code, Codex, Cursor, and Claude Desktop. `test/` holds the Node test suite (mock phone + end-to-end), run with `node --test`.
 - **`pocket_mcp_client.py`** — Python 3 client with typed exceptions, retry logic, WebSocket support (optional `websockets`), and mDNS discovery (optional `zeroconf`). Can be imported or run as CLI.
 - **`openclaw-tools/telegram-starter/`** — Small Node.js Telegram bot starter (separate from core app; has its own `package.json` and tests).
 
@@ -77,7 +77,7 @@ phone-mcp/
 ### Node.js Bridge
 
 - Runtime: Node.js (ES modules)
-- Key deps: `@modelcontextprotocol/sdk ^1.12.0`, `ws ^8.19.0`, `bonjour-service ^1.3.0`
+- Runtime deps: none (Node 20+ stdlib only); mDNS discovery implemented with `dgram`
 
 ### Python Client
 
@@ -110,9 +110,12 @@ A pre-release APK may be present at the repo root (`PocketMCP-debug.apk`) as a l
 
 ```bash
 cd mcp-bridge
-npm install
 node bridge.mjs --url http://PHONE_IP:8080/mcp --api-key YOUR_KEY --verbose
+node setup.mjs   # guided setup: OpenCode, Claude Code, Codex, Cursor, Claude Desktop
+node --test      # bridge + setup test suite (Node 20+)
 ```
+
+No `npm install` — the bridge and setup helper have zero dependencies.
 
 ### Python Client
 
@@ -254,7 +257,9 @@ Covered today:
 - `agent/nlu/CommandParserTest`, `agent/planner/TaskGraphBuilderTest` — NLU parsing + task planning
 - `util/ApiKeyGeneratorTest`, `util/McpConfigBuilderTest` — key/config generation
 
-CI (`.github/workflows/ci.yml`) runs `assembleDebug` + `testDebugUnitTest` on push/PR.
+CI (`.github/workflows/ci.yml`) runs `assembleDebug` + `testDebugUnitTest`, then the bridge checks and `node --test` suite on Node 22, on push/PR.
+
+The `mcp-bridge/` suite runs via `node --test` from `mcp-bridge/` (Node 20+): end-to-end bridge tests against a mock phone (`test/helpers/mock-phone.mjs`), transport-variant tests (SSE, sessions, retries, auth), mDNS codec tests with synthetic packets, and pure planner tests for `setup.mjs` config generation.
 
 Conventions:
 - Keep unit tests pure JVM — avoid Android framework calls (`Looper`, real `Context`, etc.). `testOptions { unitTests.isReturnDefaultValues = true }` is enabled as a safety net.

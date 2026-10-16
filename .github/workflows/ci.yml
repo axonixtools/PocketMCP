@@ -39,6 +39,18 @@ jobs:
       - name: Run unit tests
         run: ./gradlew testDebugUnitTest --stacktrace
 
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Bridge and setup-tool checks
+        working-directory: mcp-bridge
+        run: |
+          node --check bridge.mjs
+          node --check setup.mjs
+          node --test
+
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v4

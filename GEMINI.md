@@ -32,9 +32,11 @@ This project turns an Android device into a [Model Context Protocol (MCP)](https
 - **Install APK**: `adb install -r app/build/outputs/apk/debug/app-debug.apk`
 - **Clean Project**: `./gradlew clean`
 - **Emulator Setup**: `powershell -ExecutionPolicy Bypass -File .\scripts\setup-emulator-mcp.ps1` (for port forwarding).
-- **Run Bridge (Node.js)**: 
+- **Run Bridge (Node.js, zero dependencies)**: 
   ```bash
-  cd mcp-bridge && npm install && node bridge.mjs --url http://<IP>:8080/mcp --api-key <KEY>
+  cd mcp-bridge && node bridge.mjs --url http://<IP>:8080/mcp --api-key <KEY>
+  # or one-command setup for AI coding tools:
+  cd mcp-bridge && node setup.mjs
   ```
 
 ## Development Conventions

@@ -1,16 +1,17 @@
 {
   "name": "pocket-mcp-bridge",
-  "version": "1.1.0",
-  "description": "Stdio-to-HTTP bridge for PocketMCP server",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Zero-dependency stdio bridge + one-command setup helper for PocketMCP",
   "type": "module",
   "main": "bridge.mjs",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "node bridge.mjs",
-    "check": "node --check bridge.mjs"
-  },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.12.0",
-    "bonjour-service": "^1.3.0",
-    "ws": "^8.19.0"
+    "setup": "node setup.mjs",
+    "check": "node --check bridge.mjs && node --check setup.mjs",
+    "test": "node --test"
   }
 }

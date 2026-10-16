@@ -275,6 +275,12 @@ curl -X POST http://192.0.2.100:8080/mcp \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 ```
 
+Or verify everything in one shot (health, auth, protocol, tool list):
+
+```bash
+node mcp-bridge/setup.mjs doctor --url http://192.0.2.100:8080/mcp --api-key your-api-key
+```
+
 ### Emulator connection (Android Studio AVD)
 
 If PocketMCP runs inside an Android emulator, do **not** use `10.0.2.15` from your host MCP client config.
@@ -295,15 +301,57 @@ Notes:
 - `10.0.2.15` is emulator-internal (not host-reachable).
 - `10.0.2.2` is for emulator -> host, not host -> emulator.
 
-## MCP Client Config Example
+## Connect your AI tool
 
-Use `mcp-config.example.json` as a template.
+PocketMCP speaks **Streamable HTTP** natively (no companion process needed) and also ships a **zero-dependency stdio bridge** for tools that only launch local MCP servers. Both paths expose the same tools — use either, or both.
+
+**One command does the whole setup** (Node 20+, no `npm install`):
+
+```bash
+node mcp-bridge/setup.mjs
+```
+
+It finds your phone on the LAN (mDNS), verifies health + API key + tool discovery, saves the connection to `~/.pocketmcp.json`, and writes ready-made configs for the tools you pick:
+
+| Tool | Config location | Direct HTTP | Stdio bridge |
+| ---- | --------------- | :---------: | :----------: |
+| OpenCode | `~/.config/opencode/opencode.json` | ✅ | ✅ |
+| Claude Code | `claude mcp add` / `.mcp.json` | ✅ | ✅ |
+| Codex CLI | `~/.codex/config.toml` | ✅ | ✅ |
+| Cursor | `~/.cursor/mcp.json` | ✅ | ✅ |
+| Claude Desktop | `claude_desktop_config.json` | (Connectors UI) | ✅ |
+| Anything else | `node mcp-bridge/setup.mjs print generic` | ✅ | ✅ |
+
+Handy commands:
+
+```bash
+node mcp-bridge/setup.mjs doctor                    # end-to-end connectivity check
+node mcp-bridge/setup.mjs doctor --call device_info # ...and actually run a tool
+node mcp-bridge/setup.mjs print opencode            # print one config, write nothing
+node mcp-bridge/setup.mjs --mode bridge             # configure the stdio bridge instead
+node mcp-bridge/setup.mjs --mode both               # write the HTTP config + print the bridge variant
+```
+
+Full per-tool walkthrough with every snippet: **[docs/harness-setup.md](docs/harness-setup.md)**.
+
+### Direct Streamable HTTP endpoint
+
+The phone endpoint is the core of the server and stays available either way — the bridge is just a proxy to it:
+
+```text
+POST http://<phone-ip>:8080/mcp     # JSON-RPC (JSON or SSE response)
+GET  http://<phone-ip>:8080/mcp     # SSE stream
+GET  http://<phone-ip>:8080/health  # public health check (no key)
+WS   ws://<phone-ip>:8080/ws        # WebSocket transport (pass ?key=<api-key>)
+```
+
+Minimal client config (also in `mcp-config.example.json`):
 
 ```json
 {
   "mcpServers": {
-    "phone": {
-      "type": "streamableHttp",
+    "pocketmcp": {
+      "type": "http",
       "url": "http://192.0.2.100:8080/mcp",
       "headers": {
         "X-API-Key": "your-api-key"
@@ -313,33 +361,25 @@ Use `mcp-config.example.json` as a template.
 }
 ```
 
-## Stdio Bridge (for stdio-only MCP clients)
+> Claude Code requires `"type": "http"`; Cursor ignores the type field; OpenCode uses `mcp.servers` instead of `mcpServers` — `setup.mjs print opencode` emits the right shape.
 
-PocketMCP includes a hardened stdio bridge in `mcp-bridge/bridge.mjs` that proxies stdio MCP calls to your phone's HTTP MCP endpoint.
+### Stdio bridge (for stdio-only clients)
+
+`mcp-bridge/bridge.mjs` is a single file with **zero dependencies** — no `npm install`:
 
 ```bash
-cd mcp-bridge
-npm install
-node bridge.mjs --url http://192.0.2.100:8080/mcp --api-key your-api-key --verbose
+node mcp-bridge/bridge.mjs --url http://192.0.2.100:8080/mcp --api-key your-api-key
 ```
 
-Bridge configuration options:
+After running the setup wizard once, the bridge auto-resolves your phone from `~/.pocketmcp.json` (falling back to LAN discovery), so `node mcp-bridge/bridge.mjs` alone is enough:
 
-- `--url`: target phone MCP URL (auto-adds `http://` if missing)
-- `--api-key`: API key sent as `X-API-Key`
-- `--timeout-ms`: per-request timeout (default `20000`)
-- `--tools-ttl-ms`: tool cache TTL (default `30000`)
-- `--no-tool-cache`: disable tool caching
-- `--verbose`: emit detailed bridge logs to stderr
-
-Equivalent environment variables:
-
-- `POCKET_MCP_URL`
-- `POCKET_MCP_API_KEY`
-- `POCKET_MCP_TIMEOUT_MS`
-- `POCKET_MCP_TOOLS_TTL_MS`
-- `POCKET_MCP_DISABLE_TOOL_CACHE=1`
-- `POCKET_MCP_VERBOSE=1`
+- `--url` / `POCKET_MCP_URL`: phone MCP URL (`ws://` URLs auto-convert; default falls back to `127.0.0.1:8080` for emulators)
+- `--api-key` / `POCKET_MCP_API_KEY`: key sent as `X-API-Key`
+- `--timeout-ms` / `POCKET_MCP_TIMEOUT_MS`: per-request timeout (default `30000`)
+- `--tools-ttl-ms` / `POCKET_MCP_TOOLS_TTL_MS`: tool-list cache TTL (default `30000`)
+- `--no-tool-cache` / `POCKET_MCP_DISABLE_TOOL_CACHE=1`: always fetch the live tool list
+- `--verbose` / `POCKET_MCP_VERBOSE=1`: detailed logs on stderr
+- `POCKET_MCP_PROFILE`: alternate profile path (default `~/.pocketmcp.json`)
 
 ## Python Client Example
 

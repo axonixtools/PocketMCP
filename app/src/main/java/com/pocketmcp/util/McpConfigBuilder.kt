@@ -21,8 +21,8 @@ public object McpConfigBuilder {
             """
 {
   "mcpServers": {
-    "phone": {
-      "type": "streamableHttp",
+    "pocketmcp": {
+      "type": "http",
       "url": "$endpoint"
     }
   }
@@ -32,8 +32,8 @@ public object McpConfigBuilder {
             """
 {
   "mcpServers": {
-    "phone": {
-      "type": "streamableHttp",
+    "pocketmcp": {
+      "type": "http",
       "url": "$endpoint",
 $headersBlock
     }
