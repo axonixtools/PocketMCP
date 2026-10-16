@@ -1,19 +1,23 @@
 #!/usr/bin/env node
 /**
- * pocket — instant PocketMCP command runner.
+ * pocket — instant PocketMCP command runner. No AI in the loop.
  *
- * Turns short everyday commands into direct phone tool calls with NO AI in
- * the loop: "open youtube", "torch on", "volume down 2", "scroll down",
- * "lock", "screenshot", "ring". Anything that is not one of the built-in
- * fast patterns is sent to the phone's on-device NLU (human_command) in the
- * same single round trip — still no desktop LLM involved.
+ * Routes human phrasings straight to phone tools with a local intent library
+ * (sub-millisecond regex matching on the PC). Supports multi-command chains
+ * ("open youtube and turn on the torch"). Anything that does not match goes to
+ * the phone's on-device NLU (human_command) in the SAME single round trip —
+ * still no desktop model involved.
  *
  * Usage:
  *   pocket "open youtube"
- *   pocket torch on
+ *   pocket "turn on the flashlight and open youtube"
+ *   pocket "find my phone"
+ *   pocket "call alex"
+ *   pocket "what's alex's number"
+ *   pocket --dry-run "lock the phone, torch on"
  *   pocket --raw flashlight '{"action":"status"}'
  *   pocket --bench 20 "torch status"
- *   pocket --url http://192.0.2.50:8080/mcp --api-key KEY "volume up"
+ *   pocket help
  *
  * Endpoint + key default to the saved bridge profile (~/.pocketmcp.json).
  */
@@ -21,7 +25,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-// --- argument parsing ------------------------------------------------------
+// --- argument parsing --------------------------------------------------------
 
 const argv = process.argv.slice(2);
 let url = null;
@@ -30,6 +34,8 @@ let rawTool = null;
 let rawJson = '{}';
 let benchCount = 0;
 let timeoutMs = 10000;
+let dryRun = false;
+let wantHelp = false;
 const words = [];
 
 for (let i = 0; i < argv.length; i += 1) {
@@ -51,20 +57,67 @@ for (let i = 0; i < argv.length; i += 1) {
     }
   } else if (arg === '--timeout') {
     timeoutMs = Math.max(200, Number(argv[++i]) || timeoutMs);
+  } else if (arg === '--dry-run') {
+    dryRun = true;
   } else if (arg === '--help' || arg === '-h') {
-    console.log('usage: pocket [--url U] [--api-key K] [--raw TOOL [JSON]] [--bench [N]] [--timeout MS] <command words...>');
-    process.exit(0);
+    wantHelp = true;
   } else {
     words.push(arg);
   }
 }
 
-const phrase = words.join(' ').trim();
-const p = phrase.toLowerCase();
+const HELP = `pocket — instant phone commands (no AI in the loop)
 
-if (!rawTool && !phrase) {
-  console.log('usage: pocket [--url U] [--api-key K] [--raw TOOL [JSON]] [--bench [N]] [--timeout MS] <command words...>');
-  process.exit(1);
+USAGE
+  pocket <phrase>                run a phrase (fast local routing)
+  pocket "a and b"               chain: "open youtube and torch on"
+  pocket --dry-run "<phrase>"    show the plan, call nothing
+  pocket --raw <tool> '<json>'   call any MCP tool directly
+  pocket --bench [N] "<phrase>"  time N runs (single command only)
+  pocket help                    this cheat sheet
+
+LIGHTS & SOUND
+  torch on | off | toggle | status        light on / turn the light off
+  volume up | down [n] | volume 5         louder / quieter / set level
+  mute | unmute | volume status
+
+FIND & LOCATE
+  find my phone | where's my phone        rings loud + location
+  stop ringing
+  where am i | my location | location
+
+PEOPLE
+  call <name>                             dials via phone brain
+  text <name> <words> | message <name> ...| whatsapp <name> ...
+  <name>'s number | number of <name>      contact lookup
+
+APPS
+  open | launch | start <app>             close <app>
+  list apps
+
+PHONE CONTROL
+  home | back | recents | lock            open notifications | quick settings
+  scroll down [n] | screenshot            what's on my screen
+  battery | device info | storage
+
+NOTIFICATIONS
+  notifications | read my notifications | clear notifications
+
+RECORDING
+  start recording | stop recording | recording status
+
+ANYTHING ELSE
+  goes to the phone's on-device brain (still no desktop AI in the path)
+`;
+
+let phrase = words.join(' ').trim();
+// Tolerate "pocket open youtube" / "hey pocket, open youtube" typed as one phrase.
+phrase = phrase.replace(/^(?:ok(?:ay)?\s+|hey\s+)?(?:pocket|pocketmcp)\b[,:\s]*/i, '').trim();
+
+const isHelpPhrase = /^(?:help|commands|cheat\s?sheet|what can you do|\?)$/i.test(phrase);
+if (wantHelp || isHelpPhrase || (!rawTool && !phrase)) {
+  console.log(HELP);
+  process.exit(0);
 }
 
 if (!url || !apiKey) {
@@ -81,97 +134,148 @@ if (!url) {
   process.exit(1);
 }
 
-// --- fast local routing (sub-millisecond, no model) -------------------------
+// --- intent library (local, sub-millisecond, no model) ----------------------
 
-/**
- * Each route returns either { tool, args } or { tool, args, repeat } for
- * gestures that need to be replayed N times.
- */
-const ROUTES = [
+const step = (tool, args, label) => ({ tool, args, label });
+
+const on = (tool, label) => () => [step(tool, { action: 'on' }, label)];
+const off = (tool, label) => () => [step(tool, { action: 'off' }, label)];
+
+const INTENTS = [
+  // ----- flashlight ---------------------------------------------------------
+  { re: /^(?:turn|switch|put)\s+on\s+(?:the\s+)?(?:torch|flash\s?light|light|flash)$/, steps: on('flashlight', 'flashlight · on') },
+  { re: /^turn\s+(?:the\s+)?(?:torch|flash\s?light|light|flash)\s+on$/, steps: on('flashlight', 'flashlight · on') },
+  { re: /^(?:enable|activate)\s+(?:the\s+)?(?:torch|flash\s?light|light)$/, steps: on('flashlight', 'flashlight · on') },
+  { re: /^(?:turn|switch|put)\s+off\s+(?:the\s+)?(?:torch|flash\s?light|light|flash)$/, steps: off('flashlight', 'flashlight · off') },
+  { re: /^turn\s+(?:the\s+)?(?:torch|flash\s?light|light|flash)\s+off$/, steps: off('flashlight', 'flashlight · off') },
+  { re: /^(?:disable|deactivate)\s+(?:the\s+)?(?:torch|flash\s?light|light)$/, steps: off('flashlight', 'flashlight · off') },
+  { re: /^(?:is\s+)?(?:the\s+)?(?:torch|flash\s?light|light)\s+(?:status|state)$/, steps: () => [step('flashlight', { action: 'status' }, 'flashlight · status')] },
+  { re: /^is\s+(?:the\s+)?(?:torch|flash\s?light|light)\s+on$/, steps: () => [step('flashlight', { action: 'status' }, 'flashlight · status')] },
   {
-    re: /^(?:turn\s+on|switch\s+on)\s+(?:the\s+)?(?:torch|flash\s?light)$/,
-    route: () => ({ tool: 'flashlight', args: { action: 'on' }, label: 'flashlight · on' }),
+    re: /^(?:the\s+)?(?:torch|flash\s?light|flash|light)(?:\s+(on|off|toggle))?$/,
+    steps: (m) => [step('flashlight', { action: m[1] ?? 'toggle' }, `flashlight · ${m[1] ?? 'toggle'}`)],
+  },
+
+  // ----- volume -------------------------------------------------------------
+  { re: /^(?:turn\s+up|increase|raise|boost)(?:\s+the)?\s+volume(?:\s+by\s+(\d+))?$/, steps: (m) => [step('volume_control', { action: 'up', stream: 'music', steps: m[1] ? Number(m[1]) : 1 }, `volume · music up${m[1] ? ' ×' + m[1] : ''}`)] },
+  { re: /^(?:turn\s+down|decrease|lower|reduce)(?:\s+the)?\s+volume(?:\s+by\s+(\d+))?$/, steps: (m) => [step('volume_control', { action: 'down', stream: 'music', steps: m[1] ? Number(m[1]) : 1 }, `volume · music down${m[1] ? ' ×' + m[1] : ''}`)] },
+  { re: /^(?:louder|volume louder|make it louder)$/, steps: () => [step('volume_control', { action: 'up', stream: 'music', steps: 1 }, 'volume · music up')] },
+  { re: /^(?:quieter|volume quieter|lower it)$/, steps: () => [step('volume_control', { action: 'down', stream: 'music', steps: 1 }, 'volume · music down')] },
+  {
+    re: /^(?:(music|ring|alarm|notification|call|voice_call|system)\s+)?volume\s+(up|down)(?:\s+(\d+))?(?:\s+notches?)?$/,
+    steps: (m) => [step('volume_control', { action: m[2], stream: m[1] ?? 'music', steps: m[3] ? Number(m[3]) : 1 }, `volume · ${m[1] ?? 'music'} ${m[2]}${m[3] ? ' ×' + m[3] : ''}`)],
+  },
+  { re: /^(?:set\s+)?volume\s+(?:to\s+)?(\d{1,3})$/, steps: (m) => [step('volume_control', { action: 'set', stream: 'music', level: Number(m[1]) }, `volume · set ${m[1]}`)] },
+  { re: /^volume\s+(mute|unmute)$/, steps: (m) => [step('volume_control', { action: m[1] }, `volume · ${m[1]}`)] },
+  { re: /^(mute|unmute)(?:\s+(?:the\s+)?(?:phone|it|sound|audio))?$/, steps: (m) => [step('volume_control', { action: m[1] }, `volume · ${m[1]}`)] },
+  { re: /^(?:volume\s+status|what(?:'s| is) the volume)$/, steps: () => [step('volume_control', { action: 'status' }, 'volume · status')] },
+
+  // ----- recording (before apps — "start recording" must not launch an app) --
+  {
+    re: /^(?:start|begin)(?:\s+a|\s+the)?(?:\s+new)?(?:\s+voice)?(?:\s+recording|\s+record)$|^record(?:\s+my)?\s+voice$/,
+    steps: () => [step('voice_record', { action: 'start' }, 'voice recording · start')],
   },
   {
-    re: /^(?:turn\s+off|switch\s+off)\s+(?:the\s+)?(?:torch|flash\s?light)$/,
-    route: () => ({ tool: 'flashlight', args: { action: 'off' }, label: 'flashlight · off' }),
+    re: /^(?:stop|end|finish)(?:\s+the|\s+my)?(?:\s+voice)?(?:\s+recording|\s+record)$/,
+    steps: () => [step('voice_record', { action: 'stop' }, 'voice recording · stop')],
   },
+  { re: /^(?:recording status|am i recording|is (?:my )?recording running)$/, steps: () => [step('voice_record', { action: 'status' }, 'voice recording · status')] },
+
+  // ----- find phone / location ---------------------------------------------
   {
-    re: /^(?:the\s+)?(?:torch|flash\s?light)(?:\s+(on|off|toggle|status))?$/,
-    route: (m) => ({ tool: 'flashlight', args: { action: m[1] ?? 'toggle' }, label: `flashlight · ${m[1] ?? 'toggle'}` }),
+    re: /^(?:ring(?:\s+(?:it|my phone|the phone|phone))?|find(?:\s+my)?\s+phone|make(?:\s+my)?\s+phone\s+ring|lost(?:\s+my)?\s+phone|where(?:'s| is|s)\s+(?:my\s+)?phone|i\s+lost\s+my\s+phone)$/,
+    steps: () => [
+      step('phone_alert', { action: 'both', duration_seconds: 30, boost_ring_volume: true }, 'phone alert · ring+vibrate 30s'),
+      step('get_location', { max_age_seconds: 86400 }, 'location (last known)'),
+    ],
   },
+  { re: /^(?:stop|end|kill)(?:\s+the)?(?:\s+ring(?:ing)?|\s+alert|\s+sound|\s+buzzing)$/, steps: () => [step('phone_alert', { action: 'stop' }, 'phone alert · stop')] },
+  { re: /^(?:where am i|where i am|my location|current location|location|gps|locate me|where are we)$/, steps: () => [step('get_location', { max_age_seconds: 86400 }, 'location')] },
+
+  // ----- people -------------------------------------------------------------
   {
-    re: /^(?:(music|ring|alarm|notification|call|voice_call|system)\s+)?volume\s+(up|down)(?:\s+(\d+))?$/,
-    route: (m) => ({
-      tool: 'volume_control',
-      args: { action: m[2], stream: m[1] ?? 'music', steps: m[3] ? Number(m[3]) : 1 },
-      label: `volume · ${m[1] ?? 'music'} ${m[2]}${m[3] ? ' ×' + m[3] : ''}`,
-    }),
+    re: /^(?:what(?:'s| is)|give me|find|show me|get|tell me)(?:\s+the)?\s+(?:phone number|number|contact info|contact|mobile)(?:\s+(?:of|for))?\s+(.+)$|^(?:number|contact)(?:\s+(?:of|for))?\s+(.+)$|^(.+?)(?:'s|s')\s+(?:phone number|number|contact)$/,
+    steps: (m) => {
+      let name = (m[1] ?? m[2] ?? m[3] ?? '').trim();
+      let previous;
+      do {
+        previous = name;
+        name = name.replace(/^(?:what(?:'s| is)|whats|give me|find|show me|get|tell me|the|of|for|is)\s+/i, '');
+      } while (name !== previous);
+      return [step('search_contacts', { query: name.trim() }, `contacts · ${name.trim()}`)];
+    },
   },
+  { re: /^(?:call|dial|phone)\s+(?!number\b)(?:up\s+)?(.+)$|^give\s+(.+?)\s+a\s+(?:call|ring)$/, steps: (m, raw) => [step('human_command', { command: raw }, 'phone brain · call')] },
+  { re: /^(?:message|text|sms|whatsapp|telegram|signal)\s+(.+)$|^send\s+(?:a\s+)?(?:message|text|sms|whatsapp)(?:\s+to)?\s+(.+)$|^tell\s+(.+)$/, steps: (m, raw) => [step('human_command', { command: raw }, 'phone brain · message')] },
+
+  // ----- device -------------------------------------------------------------
+  { re: /^(?:battery|battery (?:level|status|percentage|percent|charge)|how(?:'s| is) (?:my|the) battery|how much (?:battery|charge)(?: (?:is )?left)?|check(?: the)? battery)$/, steps: () => [step('device_info', {}, 'device info · battery')] },
+  { re: /^(?:device|phone|system|hardware)\s+info$/, steps: () => [step('device_info', {}, 'device info')] },
+  { re: /^(?:storage|free space|disk space)$/, steps: () => [step('device_info', {}, 'device info · storage')] },
+
+  // ----- notifications ------------------------------------------------------
+  { re: /^(?:notifications|read (?:my )?notifications|check (?:my )?notifications|any (?:new )?notifications|what notifications|what did i miss|show me my notifications)$/, steps: () => [step('notifications', {}, 'notifications')] },
+  { re: /^(?:clear|dismiss|remove)(?:\s+all)?(?:\s+my)?\s+notifications$/, steps: (m, raw) => [step('human_command', { command: raw }, 'phone brain · notifications')] },
+
+  // ----- global actions -----------------------------------------------------
+  { re: /^(?:go\s+)?home$|^(?:go|take me)\s+(?:to\s+)?home$/, steps: () => [step('global_action', { action: 'home' }, 'home')] },
+  { re: /^(?:go\s+)?back$|^(?:press\s+)?back$/, steps: () => [step('global_action', { action: 'back' }, 'back')] },
+  { re: /^(?:recents|recent apps|app switcher|show recent apps)$/, steps: () => [step('global_action', { action: 'recents' }, 'recents')] },
+  { re: /^(?:open|show|pull down)\s+(?:my\s+)?(?:notifications?|notification shade|notification panel)$/, steps: () => [step('global_action', { action: 'notifications' }, 'notification shade')] },
+  { re: /^(?:open|show)\s+(?:quick settings|settings panel)$/, steps: () => [step('global_action', { action: 'quick_settings' }, 'quick settings')] },
+  { re: /^(?:open|show)\s+(?:the\s+)?power\s+(?:menu|dialog)$/, steps: () => [step('global_action', { action: 'power_dialog' }, 'power menu')] },
+  { re: /^(?:lock|lock the (?:phone|screen)|lock phone|screen off|turn off(?: the)? screen)$/, steps: () => [step('global_action', { action: 'lock_screen' }, 'lock screen')] },
+  { re: /^(?:close|kill|force stop)\s+(?:the\s+)?(?:current|this)\s+app$/, steps: () => [step('global_action', { action: 'close_current_app' }, 'close current app')] },
+
+  // ----- UI helpers ---------------------------------------------------------
   {
-    re: /^volume\s+(mute|unmute|status)$/,
-    route: (m) => ({ tool: 'volume_control', args: { action: m[1] }, label: `volume · ${m[1]}` }),
+    re: /^(?:scroll|swipe)\s+(up|down|left|right)(?:\s+(\d+))?(?:\s+times?)?$/,
+    steps: (m) => {
+      const times = Math.min(10, m[2] ? Number(m[2]) : 1);
+      return Array.from({ length: times }, () => step('scroll_screen', { direction: m[1] }, `scroll · ${m[1]}${times > 1 ? ' ×' + times : ''}`));
+    },
   },
-  {
-    re: /^volume\s+(\d{1,3})$/,
-    route: (m) => ({ tool: 'volume_control', args: { action: 'set', level: Number(m[1]) }, label: `volume · set ${m[1]}` }),
-  },
-  {
-    re: /^(mute|unmute)$/,
-    route: (m) => ({ tool: 'volume_control', args: { action: m[1] }, label: `volume · ${m[1]}` }),
-  },
-  { re: /^(?:lock(?: the)?(?: phone| screen)?|lock screen|screen off)$/, route: () => ({ tool: 'global_action', args: { action: 'lock_screen' }, label: 'lock' }) },
-  { re: /^(?:go\s+)?home$/, route: () => ({ tool: 'global_action', args: { action: 'home' }, label: 'home' }) },
-  { re: /^(?:go\s+)?back$/, route: () => ({ tool: 'global_action', args: { action: 'back' }, label: 'back' }) },
-  { re: /^(?:recent(?:\s+apps)?|app\s+switcher)$/, route: () => ({ tool: 'global_action', args: { action: 'recents' }, label: 'recents' }) },
-  { re: /^(?:open\s+|show\s+)?(?:notifications?|notification\s+shade|notification\s+panel)$/, route: () => ({ tool: 'global_action', args: { action: 'notifications' }, label: 'notification shade' }) },
-  { re: /^(?:open\s+|show\s+)?(?:quick\s+settings|settings\s+panel)$/, route: () => ({ tool: 'global_action', args: { action: 'quick_settings' }, label: 'quick settings' }) },
-  { re: /^(?:open\s+)?power\s+(?:menu|dialog)$/, route: () => ({ tool: 'global_action', args: { action: 'power_dialog' }, label: 'power menu' }) },
-  { re: /^(?:close|force\s+close)\s+(?:current\s+app|this\s+app)$/, route: () => ({ tool: 'global_action', args: { action: 'close_current_app' }, label: 'close app' }) },
-  {
-    re: /^(?:scroll|swipe)\s+(up|down|left|right)(?:\s+(\d+))?$/,
-    route: (m) => ({
-      tool: 'scroll_screen',
-      args: { direction: m[1] },
-      repeat: Math.min(8, m[2] ? Number(m[2]) : 1),
-      label: `scroll · ${m[1]}${m[2] ? ' ×' + m[2] : ''}`,
-    }),
-  },
-  { re: /^(?:take\s+)?(?:a\s+)?(?:screenshot|screen\s?shot)$/, route: () => ({ tool: 'take_screenshot', args: {}, label: 'screenshot' }) },
-  { re: /^(?:ring|find\s+(?:my\s+)?phone|alert(?:\s+me)?)$/, route: () => ({ tool: 'phone_alert', args: { action: 'ring' }, label: 'phone alert · ring' }) },
-  {
-    re: /^close\s+([\w .'-]+)$/,
-    route: (m) => ({ tool: 'launch_app', args: { action: 'close', voice_command: `close ${m[1]}` }, label: `close ${m[1]}` }),
-  },
-  {
-    re: /^(?:open|launch|start|run)\s+(.+)$/,
-    route: () => ({ tool: 'launch_app', args: { voice_command: phrase }, label: `launch · ${phrase.replace(/^(open|launch|start|run)\s+/i, '')}` }),
-  },
+  { re: /^(?:take\s+(?:a\s+)?)?(?:screenshot|screen\s?shot)$|^capture (?:the )?screen$/, steps: () => [step('take_screenshot', {}, 'screenshot')] },
+  { re: /^(?:what(?:'s| is) (?:on|showing on) (?:my|the) screen|read (?:my|the) screen|screen (?:state|content|snapshot)|what am i looking at)$/, steps: () => [step('screen_state', {}, 'screen state')] },
+
+  // ----- apps ---------------------------------------------------------------
+  { re: /^(?:open|launch|start|run|go to|switch to|bring up|jump to|pull up)\s+(?:the\s+)?(.+)$/, steps: (m, raw) => [step('launch_app', { voice_command: raw }, `launch · ${raw.replace(/^(?:open|launch|start|run|go to|switch to|bring up|jump to|pull up)\s+(?:the\s+)?/i, '')}`)] },
+  { re: /^(?:close|kill|quit|exit)\s+(.+)$/, steps: (m) => [step('launch_app', { action: 'close', voice_command: `close ${m[1]}` }, `close · ${m[1]}`)] },
+  { re: /^(?:list|show me)(?:\s+my)?\s+(?:installed\s+)?apps$|^what apps (?:do i have|are installed)$/, steps: () => [step('list_apps', {}, 'apps · list')] },
 ];
 
-function resolveCommand() {
-  if (rawTool) {
-    let args = {};
-    try {
-      args = JSON.parse(rawJson);
-    } catch {
-      console.error(`--raw JSON is not valid: ${rawJson}`);
-      process.exit(1);
-    }
-    return { tool: rawTool, args, repeat: 1, label: `raw · ${rawTool}` };
+function normalize(raw) {
+  return raw.toLowerCase().replace(/[?!.]+$/g, '').replace(/\s+/g, ' ').trim();
+}
+
+function resolveSingle(raw) {
+  const p = normalize(raw);
+  for (const intent of INTENTS) {
+    const m = p.match(intent.re);
+    if (m) return intent.steps(m, raw);
   }
-  for (const entry of ROUTES) {
-    const m = p.match(entry.re);
-    if (m) {
-      const routed = entry.route(m);
-      return { repeat: 1, ...routed };
+  return null;
+}
+
+const CHAIN_SEPARATORS = [/\s+and then\s+/i, /\s+then\s+/i, /[,;]\s*/, /\s+and\s+/i];
+
+function resolvePlan(raw) {
+  const direct = resolveSingle(raw);
+  if (direct) return { steps: direct, chained: false };
+  for (const sep of CHAIN_SEPARATORS) {
+    if (!sep.test(raw)) continue;
+    const parts = raw.split(sep).map((part) => part.trim()).filter(Boolean);
+    if (parts.length < 2) continue;
+    const resolved = parts.map((part) => resolveSingle(part));
+    if (resolved.every(Boolean)) {
+      return { steps: resolved.flat(), chained: true };
     }
   }
   // On-device NLU fallback — still a single round trip, no desktop model.
-  return { tool: 'human_command', args: { command: phrase }, repeat: 1, label: 'phone brain · human_command' };
+  return { steps: [step('human_command', { command: phrase }, 'phone brain · human_command')], chained: false, fallback: true };
 }
 
-// --- transport --------------------------------------------------------------
+// --- transport ---------------------------------------------------------------
 
 async function callTool(tool, args) {
   const body = JSON.stringify({
@@ -207,53 +311,94 @@ async function callTool(tool, args) {
   return { ms, result: parsed?.result };
 }
 
-function summarize(result) {
+function summarize(result, max = 700) {
   const text = result?.content?.find((c) => c.type === 'text')?.text;
   const prefix = result?.isError ? '⚠️ ' : '';
-  if (!text) return prefix + (JSON.stringify(result) ?? '');
-  try {
-    return prefix + JSON.stringify(JSON.parse(text), null, 2);
-  } catch {
-    return prefix + text;
+  let out;
+  if (!text) {
+    out = prefix + (JSON.stringify(result) ?? '');
+  } else {
+    try {
+      out = prefix + JSON.stringify(JSON.parse(text), null, 2);
+    } catch {
+      out = prefix + text;
+    }
   }
+  return out.length > max ? out.slice(0, max) + '…' : out;
 }
 
 function percentile(sorted, pct) {
   return sorted[Math.min(sorted.length - 1, Math.floor((pct / 100) * sorted.length))];
 }
 
-// --- main -------------------------------------------------------------------
+// --- main --------------------------------------------------------------------
 
-const command = resolveCommand();
+let plan;
+if (rawTool) {
+  let args = {};
+  try {
+    args = JSON.parse(rawJson);
+  } catch {
+    console.error(`--raw JSON is not valid: ${rawJson}`);
+    process.exit(1);
+  }
+  plan = { steps: [step(rawTool, args, `raw · ${rawTool}`)], chained: false };
+} else {
+  plan = resolvePlan(phrase);
+}
+
+if (dryRun) {
+  console.log(plan.fallback ? `plan for "${phrase}" (falls through to phone brain):` : `plan for "${phrase}":`);
+  plan.steps.forEach((s, i) => {
+    console.log(`  ${i + 1}. ${s.label}  →  ${s.tool} ${JSON.stringify(s.args)}`);
+  });
+  process.exit(0);
+}
 
 try {
   if (benchCount > 0) {
-    await callTool(command.tool, command.args); // warmup
+    if (plan.steps.length > 1) {
+      console.error('--bench supports single-step commands only (no chains).');
+      process.exit(1);
+    }
+    const only = plan.steps[0];
+    await callTool(only.tool, only.args); // warmup
     const samples = [];
     for (let i = 0; i < benchCount; i += 1) {
       const started = performance.now();
-      await callTool(command.tool, command.args);
+      await callTool(only.tool, only.args);
       samples.push(performance.now() - started);
     }
     const sorted = [...samples].sort((a, b) => a - b);
     const avg = samples.reduce((a, b) => a + b, 0) / samples.length;
     console.log(
-      `⚡ ${command.label} (${command.tool}) · n=${benchCount} · ` +
+      `⚡ ${only.label} (${only.tool}) · n=${benchCount} · ` +
       `min ${sorted[0].toFixed(0)} · avg ${avg.toFixed(0)} · p50 ${percentile(sorted, 50).toFixed(0)} · p95 ${percentile(sorted, 95).toFixed(0)} ms`
     );
     process.exit(0);
   }
 
-  const started = performance.now();
-  let result = null;
-  for (let i = 0; i < (command.repeat ?? 1); i += 1) {
-    result = await callTool(command.tool, command.args);
+  if (plan.chained) {
+    console.log(`⚡ ${plan.steps.length} commands`);
   }
-  const totalMs = performance.now() - started;
-  console.log(`⚡ ${totalMs.toFixed(0)} ms · ${command.label}`);
-  console.log(summarize(result));
-  process.exit(result?.isError ? 1 : 0);
+  const totalStart = performance.now();
+  let anyFailed = false;
+  for (const s of plan.steps) {
+    try {
+      const { ms, result } = await callTool(s.tool, s.args);
+      console.log(`⚡ ${ms.toFixed(0)} ms · ${s.label}`);
+      console.log(summarize(result));
+      if (result?.isError) anyFailed = true;
+    } catch (error) {
+      anyFailed = true;
+      console.error(`✖ ${s.label}: ${error.message}`);
+    }
+  }
+  if (plan.chained) {
+    console.log(`— total ${(performance.now() - totalStart).toFixed(0)} ms · ${plan.steps.length} steps`);
+  }
+  process.exit(anyFailed ? 1 : 0);
 } catch (error) {
-  console.error(`✖ ${command.label}: ${error.message}`);
+  console.error(`✖ ${phrase}: ${error.message}`);
   process.exit(1);
 }

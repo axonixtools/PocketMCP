@@ -38,7 +38,7 @@ phone-mcp/
 │   └── package.json
 ├── scripts/
 │   ├── setup-emulator-mcp.ps1    # PowerShell ADB port-forward helper for emulators
-│   └── pocket.mjs                # Instant CLI command runner — no-LLM fast lane ("pocket open youtube")
+│   └── pocket.mjs                # Instant command runner — local intent library + chains ("pocket open youtube and torch on"), zero AI
 ├── pocket_mcp_client.py          # Python client library + CLI
 ├── mcp-config.example.json       # Example MCP client config (Claude Desktop, Cursor, etc.)
 ├── build.gradle.kts              # Root build file
