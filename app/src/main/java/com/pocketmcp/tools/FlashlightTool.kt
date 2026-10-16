@@ -49,9 +49,17 @@ class FlashlightTool : McpToolHandler {
         val action = (argString(args, "action") ?: "status").trim().lowercase()
         val requestedCameraId = argString(args, "camera_id")?.trim()?.takeIf { it.isNotEmpty() }
         val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+        val cacheKey = requestedCameraId ?: DEFAULT_CAMERA_KEY
 
         return runCatching {
-            val cameraId = selectTorchCameraId(cameraManager, requestedCameraId)
+            // Camera discovery and characteristics lookup cross binder into the
+            // camera service and cost roughly 100 ms. The resolved id is stable for
+            // the lifetime of the device, so cache it after the first call and let
+            // follow-up actions respond in single-digit milliseconds.
+            val cameraId = resolvedCameraIds[cacheKey]
+                ?: selectTorchCameraId(cameraManager, requestedCameraId)?.also {
+                    resolvedCameraIds[cacheKey] = it
+                }
                 ?: if (requestedCameraId == null) {
                     return resultError("No flashlight-capable camera was found.")
                 } else {
@@ -72,7 +80,12 @@ class FlashlightTool : McpToolHandler {
             when (error) {
                 is SecurityException -> resultError("Torch access denied: ${error.message ?: "permission denied"}")
                 is CameraAccessException -> resultError("Camera access error: ${error.message ?: "camera unavailable"}")
-                is IllegalArgumentException -> resultError("Invalid camera id or torch operation.")
+                is IllegalArgumentException -> {
+                    // A cached id can go stale if the camera set changes; drop it so
+                    // the next call performs a fresh discovery.
+                    resolvedCameraIds.remove(cacheKey)
+                    resultError("Invalid camera id or torch operation.")
+                }
                 else -> resultError("Flashlight operation failed: ${error.message ?: "unknown error"}")
             }
         }
@@ -147,6 +160,8 @@ class FlashlightTool : McpToolHandler {
     }
 
     private companion object {
+        const val DEFAULT_CAMERA_KEY = "<auto>"
         val torchStateByCamera = ConcurrentHashMap<String, Boolean>()
+        val resolvedCameraIds = ConcurrentHashMap<String, String>()
     }
 }

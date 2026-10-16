@@ -9,7 +9,7 @@ PocketMCP is an **Android application** that turns a phone into an [MCP (Model C
 - **App package**: `com.pocketmcp`
 - **Language**: Kotlin (Android)
 - **License**: MIT
-- **Server version**: derived from the Gradle `versionName` (`1.0.0-beta.5`) via `BuildConfig.VERSION_NAME` in `McpServer.kt`
+- **Server version**: derived from the Gradle `versionName` (`1.0.0-beta.6`) via `BuildConfig.VERSION_NAME` in `McpServer.kt`
 - **Protocol version**: `2024-11-05`
 
 ### Repository Layout
