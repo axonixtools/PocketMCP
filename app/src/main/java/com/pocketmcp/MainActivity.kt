@@ -375,6 +375,10 @@ public class MainActivity : ComponentActivity() {
                                     preferences.edit().putString(UpdateChecker.PREF_UPDATE_URL, url).apply()
                                 },
                                 onCheckForUpdates = {
+                                    if (updateSourceUrl.isBlank()) {
+                                        updateStatus = "Set an update source URL below first"
+                                        return@SettingsScreen
+                                    }
                                     updateStatus = "Checking…"
                                     updateAvailable = false
                                     updateManifest = null

@@ -31,9 +31,9 @@ public data class UpdateManifest(
  */
 public object UpdateChecker {
     public const val PREF_UPDATE_URL: String = "update_source_url"
-    // Machine-local by design: injected at build time from local.properties
-    // (`pocketmcp.updateSourceUrl`). Empty for fresh checkouts — users point
-    // the app at their own manifest URL in Settings → App Updates.
+    // No URL ships with the app: set your own manifest URL in
+    // Settings → App Updates (stored only on the device). Personal endpoints
+    // are never committed or baked into builds.
     public const val DEFAULT_SOURCE_URL: String = ""
 
     private val json = Json { ignoreUnknownKeys = true }
