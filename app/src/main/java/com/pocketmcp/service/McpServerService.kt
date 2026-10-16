@@ -1,5 +1,6 @@
 package com.pocketmcp.service
 
+import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -7,10 +8,13 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import com.pocketmcp.MainActivity
 import com.pocketmcp.R
 import com.pocketmcp.server.McpServer
@@ -67,7 +71,15 @@ class McpServerService : Service() {
                 val portExtra = intent?.getIntExtra(EXTRA_PORT, currentPort) ?: currentPort
                 currentPort = if (portExtra in 1..65535) portExtra else 8080
                 apiKey = intent?.getStringExtra(EXTRA_API_KEY)?.trim()?.takeIf { it.isNotEmpty() }
-                startForegroundInternal(getString(R.string.server_starting_notification, currentPort))
+                try {
+                    startForegroundInternal(getString(R.string.server_starting_notification, currentPort))
+                } catch (error: Exception) {
+                    Log.e("McpServerService", "Failed to enter foreground: ${error.message}", error)
+                    lastError = error.message ?: "Failed to start foreground service"
+                    broadcastStatus("Failed", lastError)
+                    stopSelf(startId)
+                    return START_NOT_STICKY
+                }
                 startServer()
             }
 
@@ -157,7 +169,33 @@ class McpServerService : Service() {
 
     private fun startForegroundInternal(message: String) {
         ensureNotificationChannel()
-        startForeground(NOTIFICATION_ID, buildNotification(message))
+        val notification = buildNotification(message)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(NOTIFICATION_ID, notification, foregroundServiceTypes())
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
+        }
+    }
+
+    /**
+     * Android 14+ enforces foreground-service type permissions at
+     * [startForeground]. A service declaring `microphone` in the manifest
+     * throws [SecurityException] there unless RECORD_AUDIO is granted, which
+     * would kill the app on a fresh install. Start with `dataSync` always,
+     * and add `microphone` only after the user has granted the permission.
+     */
+    private fun foregroundServiceTypes(): Int {
+        val dataSync = ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            return dataSync
+        }
+        val micGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
+            PackageManager.PERMISSION_GRANTED
+        return if (micGranted) {
+            dataSync or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+        } else {
+            dataSync
+        }
     }
 
     private fun updateNotification(message: String) {
