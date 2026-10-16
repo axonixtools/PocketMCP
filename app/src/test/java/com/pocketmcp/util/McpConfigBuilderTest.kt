@@ -13,8 +13,8 @@ class McpConfigBuilderTest {
     fun `config is valid json and points at the endpoint`() {
         val config = McpConfigBuilder.build("http://192.0.2.10:8080/mcp", "abc123")
         val server = Json.parseToJsonElement(config)
-            .jsonObject.getValue("mcpServers").jsonObject.getValue("phone").jsonObject
-        assertEquals("streamableHttp", server.getValue("type").jsonPrimitive.content)
+            .jsonObject.getValue("mcpServers").jsonObject.getValue("pocketmcp").jsonObject
+        assertEquals("http", server.getValue("type").jsonPrimitive.content)
         assertEquals("http://192.0.2.10:8080/mcp", server.getValue("url").jsonPrimitive.content)
         val headers = server.getValue("headers").jsonObject
         assertEquals("abc123", headers.getValue("X-API-Key").jsonPrimitive.content)
@@ -25,7 +25,7 @@ class McpConfigBuilderTest {
         val config = McpConfigBuilder.build("http://192.0.2.2:8080/mcp", "")
         assertFalse(config.contains("headers"))
         val server = Json.parseToJsonElement(config)
-            .jsonObject.getValue("mcpServers").jsonObject.getValue("phone").jsonObject
+            .jsonObject.getValue("mcpServers").jsonObject.getValue("pocketmcp").jsonObject
         assertFalse("headers" in server)
     }
 
@@ -33,7 +33,7 @@ class McpConfigBuilderTest {
     fun `quotes in the key are escaped so the json stays valid`() {
         val config = McpConfigBuilder.build("http://192.0.2.2:8080/mcp", "we\"ird")
         val headers = Json.parseToJsonElement(config)
-            .jsonObject.getValue("mcpServers").jsonObject.getValue("phone").jsonObject
+            .jsonObject.getValue("mcpServers").jsonObject.getValue("pocketmcp").jsonObject
             .getValue("headers").jsonObject
         assertEquals("we\"ird", headers.getValue("X-API-Key").jsonPrimitive.content)
     }
