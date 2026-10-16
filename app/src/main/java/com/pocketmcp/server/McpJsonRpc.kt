@@ -1,6 +1,7 @@
 package com.pocketmcp.server
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -75,6 +76,7 @@ public data class McpToolsListResult(
 public data class McpToolCallResult(
     public val content: List<McpContent>,
     public val isError: Boolean = false,
+    @Transient
     public val toolError: String? = null
 )
 

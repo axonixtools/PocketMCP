@@ -8,7 +8,6 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.BatteryManager
 import android.os.Build
-import com.pocketmcp.server.McpContent
 import com.pocketmcp.server.McpToolCallResult
 import com.pocketmcp.server.McpToolHandler
 import kotlinx.serialization.json.JsonObject
@@ -91,11 +90,5 @@ class DeviceInfoTool : McpToolHandler {
         } catch (_: Exception) {
             "unknown"
         }
-    }
-
-    private fun resultJson(result: JsonObject): McpToolCallResult {
-        return McpToolCallResult(
-            content = listOf(McpContent("application/json", text = result.toString()))
-        )
     }
 }
