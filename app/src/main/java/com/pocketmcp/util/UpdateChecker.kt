@@ -23,8 +23,8 @@ public data class UpdateManifest(
  *
  * Manifest shape:
  * {
- *   "versionName": "1.0.0-beta.8",
- *   "versionCode": 8,
+ *   "versionName": "1.0.0-beta.9",
+ *   "versionCode": 9,
  *   "apkUrl": "http://host:port/PocketMCP-debug.apk",
  *   "notes": "optional changelog"
  * }

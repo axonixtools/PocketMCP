@@ -3,6 +3,7 @@ package com.pocketmcp.server
 import android.content.Context
 import android.util.Log
 import com.pocketmcp.BuildConfig
+import com.pocketmcp.tools.AccessibilityControlTool
 import com.pocketmcp.tools.CallTool
 import com.pocketmcp.tools.ContactsSearchTool
 import com.pocketmcp.tools.DeviceInfoTool
@@ -100,6 +101,7 @@ public class McpServer(
     init {
         registry.register(DeviceInfoTool())
         registry.register(LocationTool())
+        registry.register(AccessibilityControlTool())
         registry.register(ContactsSearchTool())
         registry.register(ShellCommandTool())
         registry.register(HttpProxyTool())

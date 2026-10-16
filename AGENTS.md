@@ -9,7 +9,7 @@ PocketMCP is an **Android application** that turns a phone into an [MCP (Model C
 - **App package**: `com.pocketmcp`
 - **Language**: Kotlin (Android)
 - **License**: MIT
-- **Server version**: derived from the Gradle `versionName` (`1.0.0-beta.8`) via `BuildConfig.VERSION_NAME` in `McpServer.kt`
+- **Server version**: derived from the Gradle `versionName` (`1.0.0-beta.9`) via `BuildConfig.VERSION_NAME` in `McpServer.kt`
 - **Protocol version**: `2024-11-05`
 
 ### Repository Layout
@@ -38,6 +38,7 @@ phone-mcp/
 │   └── package.json
 ├── scripts/
 │   ├── setup-emulator-mcp.ps1    # PowerShell ADB port-forward helper for emulators
+│   ├── setup-wireless-adb.ps1    # One-time wireless-ADB unlock: pair, grant WRITE_SECURE_SETTINGS, enable accessibility + notification listener
 │   └── pocket.mjs                # Instant command runner — local intent library + chains ("pocket open youtube and torch on"), zero AI
 ├── pocket_mcp_client.py          # Python client library + CLI
 ├── mcp-config.example.json       # Example MCP client config (Claude Desktop, Cursor, etc.)
@@ -144,8 +145,8 @@ python -c "from pocket_mcp_client import PocketMCPClient; c = PocketMCPClient('h
   - `ApiKeyGuard.kt` — API-key validation plus per-host throttling of failed attempts (HTTP 429 after 10 failures/minute).
   - `McpToolHandler.kt` — Interface that every tool implements (`name`, `description`, `inputSchema`, `execute`).
 - **`service/`** — `McpServerService` is an Android `Service` that runs the Ktor server in a foreground notification. Supports actions: `START`, `STOP`, `QUERY_STATUS`. Broadcasts status back to `MainActivity`. Also registers mDNS (`_mcp._tcp`) via `NsdManager` when the server starts.
-- **`tools/`** — One Kotlin file per MCP tool. Tools are registered into `McpToolRegistry` inside `McpServer.init`. There are ~35 tools covering:
-  - System: `device_info`, `shell`, `launch_app`, `list_apps`, `global_action`, `flashlight`, `volume_control`, `phone_alert`, `screenshot`, `read_file`
+- **`tools/`** — One Kotlin file per MCP tool. Tools are registered into `McpToolRegistry` inside `McpServer.init`. There are ~36 tools covering:
+  - System: `device_info`, `shell`, `launch_app`, `list_apps`, `global_action`, `flashlight`, `volume_control`, `phone_alert`, `screenshot`, `read_file`, `accessibility_control`
   - Communication: `send_message`, `make_call`, `search_contacts`, `whatsapp_automation`, `send_whatsapp_business_message`, `social_media`
   - Automation: `scroll_screen`, `search_screen`, `tap`, `app_actions`, `workflow_automation`
   - Notifications: `notifications`, `smart_notification_manager`, `notification_diagnostic`
@@ -242,6 +243,7 @@ Many tools need special permissions or services enabled by the user in system se
 | SMS | `SEND_SMS`, `READ_SMS`, `RECEIVE_SMS` |
 | Notifications | Notification Listener Service (`BIND_NOTIFICATION_LISTENER_SERVICE`) |
 | UI automation | Accessibility Service (`BIND_ACCESSIBILITY_SERVICE`) |
+| Accessibility self-toggle | `WRITE_SECURE_SETTINGS` — one-time ADB grant (`scripts/setup-wireless-adb.ps1` or `pm grant`) lets the app flip its own service |
 | Microphone / voice | `RECORD_AUDIO`, foreground service type `microphone` |
 
 ---
@@ -257,6 +259,7 @@ Covered today:
 - `tools/ToolResultUtilsTest`, `tools/McpToolRegistryTest` — tool plumbing
 - `agent/nlu/CommandParserTest`, `agent/planner/TaskGraphBuilderTest` — NLU parsing + task planning
 - `util/ApiKeyGeneratorTest`, `util/McpConfigBuilderTest` — key/config generation
+- `util/AccessibilitySetupTest` — secure-settings component merge/enable helpers
 
 CI (`.github/workflows/ci.yml`) runs `assembleDebug` + `testDebugUnitTest`, then the bridge checks and `node --test` suite on Node 22, on push/PR.
 
@@ -336,8 +339,8 @@ If you need a raw HTTP endpoint (not MCP JSON-RPC), add it inside the Ktor `rout
 ## Common Pitfalls
 
 1. **Emulator networking**: From the host, do not use `10.0.2.15`. Use `scripts/setup-emulator-mcp.ps1` to forward ADB ports and talk to `127.0.0.1:8080`.
-2. **Accessibility service must be enabled manually** in Android Settings for UI automation tools to work. The app can only open the settings screen, not toggle it programmatically.
-3. **Foreground service types**: `McpServerService` declares `dataSync|microphone`. If you add tools requiring other foreground service types (e.g. `camera`, `location`), update the manifest and `AndroidManifest.xml` accordingly.
+2. **Accessibility service**: normally enabled in Android Settings; OEM builds that block the toggle (Samsung Auto Blocker) can be unlocked once with `scripts/setup-wireless-adb.ps1` (`WRITE_SECURE_SETTINGS` grant) — afterwards the app and the `accessibility_control` tool can enable/disable the service themselves.
+3. **Foreground service types**: `McpServerService` declares `dataSync|microphone|location`, each added only once its runtime permission is granted (with a dataSync-only fallback when Android 14+ refuses while-in-use types during background restarts). If you add tools requiring other foreground service types (e.g. `camera`), update the manifest and `AndroidManifest.xml` accordingly.
 4. **mDNS registration** happens only when the server successfully starts. It is torn down in `onDestroy()`.
 5. **Tool name collisions** will throw `IllegalArgumentException` from `McpToolRegistry.register()`.
 6. **Build environment**: Gradle requires **JDK 17+** (CI and local dev use JDK 21) and an Android SDK with platform 34 + build-tools installed. Configure `sdk.dir` in `local.properties`.

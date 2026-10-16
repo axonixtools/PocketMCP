@@ -51,7 +51,8 @@ fun SettingsScreen(
     isNotificationAccessEnabled: Boolean,
     isFileStorageEnabled: Boolean,
     isDeveloperModeEnabled: Boolean,
-    accessibilityState: String,
+    accessibilityEnabled: Boolean,
+    secureSettingsGranted: Boolean,
     safetyFilterMode: String,
     onToggleApiAuth: (Boolean) -> Unit,
     onToggleTailscale: (Boolean) -> Unit,
@@ -59,6 +60,8 @@ fun SettingsScreen(
     onToggleFileStorage: (Boolean) -> Unit,
     onToggleDeveloperMode: (Boolean) -> Unit,
     onOpenAccessibilitySettings: () -> Unit,
+    onToggleAccessibility: (Boolean) -> Unit,
+    onCopyAccessibilityUnlock: () -> Unit,
     onCycleSafetyFilter: () -> Unit,
     onManageKeys: () -> Unit,
     updateStatus: String,
@@ -119,15 +122,51 @@ fun SettingsScreen(
 
         GroupedSection(title = "System Permissions", modifier = Modifier.sectionEntrance(2)) {
             GroupedCard {
-                SettingsActionRow(
-                    title = "Accessibility Service",
-                    subtitle = accessibilityState,
-                    subtitleColor = if (accessibilityState.contains("Enabled")) colors.success else colors.warning,
-                    icon = Icons.Rounded.Accessibility,
-                    tileColor = BlueLight,
-                    onClick = onOpenAccessibilitySettings,
-                    showDivider = true
-                )
+                if (secureSettingsGranted) {
+                    SettingsToggleRow(
+                        title = "Accessibility Service",
+                        subtitle = if (accessibilityEnabled) {
+                            "Enabled"
+                        } else {
+                            "Tap to enable instantly"
+                        },
+                        icon = Icons.Rounded.Accessibility,
+                        tileColor = BlueLight,
+                        checked = accessibilityEnabled,
+                        onCheckedChange = onToggleAccessibility,
+                        showDivider = true
+                    )
+                    SettingsActionRow(
+                        title = "System Accessibility Screen",
+                        subtitle = "Open the stock settings screen",
+                        icon = Icons.Rounded.Accessibility,
+                        tileColor = GrayLight,
+                        onClick = onOpenAccessibilitySettings,
+                        showDivider = true
+                    )
+                } else {
+                    SettingsActionRow(
+                        title = "Accessibility Service",
+                        subtitle = if (accessibilityEnabled) {
+                            "Enabled in settings"
+                        } else {
+                            "Missing — tap to try settings"
+                        },
+                        subtitleColor = if (accessibilityEnabled) colors.success else colors.warning,
+                        icon = Icons.Rounded.Accessibility,
+                        tileColor = BlueLight,
+                        onClick = onOpenAccessibilitySettings,
+                        showDivider = true
+                    )
+                    SettingsActionRow(
+                        title = "Unlock Without Settings (ADB)",
+                        subtitle = "Copy one-time command — bypasses Auto Blocker",
+                        icon = Icons.Rounded.Key,
+                        tileColor = OrangeLight,
+                        onClick = onCopyAccessibilityUnlock,
+                        showDivider = true
+                    )
+                }
                 SettingsToggleRow(
                     title = "Notification Access",
                     subtitle = "Read notification stream",

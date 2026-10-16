@@ -28,6 +28,7 @@ import com.pocketmcp.ui.components.AppTabBar
 import com.pocketmcp.ui.components.NavPage
 import com.pocketmcp.ui.screens.*
 import com.pocketmcp.ui.theme.PocketMCPTheme
+import com.pocketmcp.util.AccessibilitySetup
 import com.pocketmcp.util.ApiKeyGenerator
 import com.pocketmcp.util.McpConfigBuilder
 import com.pocketmcp.util.UpdateChecker
@@ -76,6 +77,7 @@ public class MainActivity : ComponentActivity() {
     private var connectionCount by mutableStateOf(0)
 
     private var accessibilityEnabled by mutableStateOf(false)
+    private var secureSettingsGranted by mutableStateOf(false)
     private var notificationAccessEnabled by mutableStateOf(false)
     private var mediaAccessEnabled by mutableStateOf(false)
     private var smsPermissionGranted by mutableStateOf(false)
@@ -291,7 +293,8 @@ public class MainActivity : ComponentActivity() {
                                 isNotificationAccessEnabled = notificationAccessEnabled,
                                 isFileStorageEnabled = mediaAccessEnabled,
                                 isDeveloperModeEnabled = developerModeEnabled,
-                                accessibilityState = if (accessibilityEnabled) "Enabled in settings" else "Missing — tap to enable",
+                                accessibilityEnabled = accessibilityEnabled,
+                                secureSettingsGranted = secureSettingsGranted,
                                 safetyFilterMode = safetyFilterMode,
                                 onToggleApiAuth = { enabled ->
                                     if (enabled) {
@@ -344,6 +347,28 @@ public class MainActivity : ComponentActivity() {
                                 onOpenAccessibilitySettings = {
                                     startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
                                     addRuntimeLog("Opened accessibility settings", LogLevel.INFO)
+                                },
+                                onToggleAccessibility = { target ->
+                                    if (AccessibilitySetup.setServiceEnabled(this@MainActivity, target)) {
+                                        refreshPermissionStates()
+                                        addRuntimeLog(
+                                            if (target) {
+                                                "Accessibility enabled via secure settings"
+                                            } else {
+                                                "Accessibility disabled via secure settings"
+                                            },
+                                            LogLevel.INFO
+                                        )
+                                    } else {
+                                        copyToClipboard("PocketMCP ADB unlock command", AccessibilitySetup.ADB_GRANT_COMMAND)
+                                        showSnackbar("One-time ADB grant needed — command copied")
+                                        addRuntimeLog("Accessibility unlock needs the one-time ADB grant", LogLevel.INFO)
+                                    }
+                                },
+                                onCopyAccessibilityUnlock = {
+                                    copyToClipboard("PocketMCP ADB unlock command", AccessibilitySetup.ADB_GRANT_COMMAND)
+                                    showSnackbar("Unlock command copied — run it once over ADB")
+                                    addRuntimeLog("Copied the accessibility ADB unlock command", LogLevel.INFO)
                                 },
                                 onCycleSafetyFilter = {
                                     val next = when (safetyFilterMode) {
@@ -555,6 +580,7 @@ public class MainActivity : ComponentActivity() {
 
     private fun refreshPermissionStates() {
         accessibilityEnabled = isAccessibilityServiceEnabled()
+        secureSettingsGranted = AccessibilitySetup.hasSecureSettingsAccess(this)
         notificationAccessEnabled = isNotificationListenerEnabled()
         mediaAccessEnabled = hasMediaPermission()
         smsPermissionGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED

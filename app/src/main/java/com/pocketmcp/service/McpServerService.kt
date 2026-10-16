@@ -193,7 +193,23 @@ class McpServerService : Service() {
         ensureNotificationChannel()
         val notification = buildNotification(message)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIFICATION_ID, notification, foregroundServiceTypes())
+            try {
+                startForeground(NOTIFICATION_ID, notification, foregroundServiceTypes())
+            } catch (error: RuntimeException) {
+                // Android 14+ can refuse while-in-use types (location/microphone)
+                // when the service restarts from the background (e.g. after an
+                // in-app update). Fall back to the dataSync-only type so the
+                // server still comes back up.
+                Log.w(
+                    "McpServerService",
+                    "Falling back to dataSync foreground type: ${error.message}"
+                )
+                startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+                )
+            }
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }
@@ -203,21 +219,27 @@ class McpServerService : Service() {
      * Android 14+ enforces foreground-service type permissions at
      * [startForeground]. A service declaring `microphone` in the manifest
      * throws [SecurityException] there unless RECORD_AUDIO is granted, which
-     * would kill the app on a fresh install. Start with `dataSync` always,
-     * and add `microphone` only after the user has granted the permission.
+     * would kill the app on a fresh install, so types are added only after
+     * the matching runtime permission is present. The `location` type keeps
+     * `get_location` able to take an active fix while the screen is off.
      */
     private fun foregroundServiceTypes(): Int {
-        val dataSync = ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-            return dataSync
+        var types = ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            return types
         }
-        val micGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
             PackageManager.PERMISSION_GRANTED
-        return if (micGranted) {
-            dataSync or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
-        } else {
-            dataSync
+        ) {
+            types = types or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
         }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            types = types or ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+        }
+        return types
     }
 
     private fun updateNotification(message: String) {

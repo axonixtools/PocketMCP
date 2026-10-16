@@ -19,7 +19,7 @@ Tab switching, staggered content reveals, log filters, the sliding segmented con
 
 ## Download (Testing Pre-release)
 
-- **Latest debug build:** [`PocketMCP-debug.apk`](./PocketMCP-debug.apk) (v1.0.0-beta.8) — install over USB with `adb install -r PocketMCP-debug.apk`
+- **Latest debug build:** [`PocketMCP-debug.apk`](./PocketMCP-debug.apk) (v1.0.0-beta.9) — install over USB with `adb install -r PocketMCP-debug.apk`
 - **In-app updates:** after the first manual install, new builds are installed from Settings → App Updates (checks a JSON manifest and hands the APK to the system installer). The MCP server auto-resumes after each update. The update source is **fully self-hosted** — the app ships with no URL; point it at any manifest you control.
 - Previous tagged release: [v1.0.0-beta.1](https://github.com/axonixtools/PocketMCP/releases/tag/v1.0.0-beta.1)
 - This build is marked as pre-release and may contain bugs while active development continues.
@@ -60,7 +60,8 @@ The project is MIT-licensed and community contributions are welcome.
 | Tool                  | Description                                                       |
 | --------------------- | ----------------------------------------------------------------- |
 | `device_info`         | Battery, model, OS, network, memory                               |
-| `get_location`        | Best recent location from device providers                        |
+| `get_location`        | Best recent location from device providers (with active-fix fallback) |
+| `accessibility_control` | Check/toggle the accessibility service (one-time ADB unlock)    |
 | `search_contacts`     | Search contacts by name                                           |
 | `make_call`           | Make phone calls to any number                                    |
 | `send_message`        | Send messages via WhatsApp, Instagram, Messenger, Google Messages |
@@ -159,7 +160,7 @@ A static HTML replica of all four screens (with a live light/dark toggle) lives 
 - File reads are restricted to app storage and external storage roots.
 - Loopback URLs are blocked in `http_request`.
 - The in-app updater ships with no built-in endpoint: it only fetches manifest URLs you configure.
-- **Accessibility Service**: Required for advanced automation features.
+- **Accessibility Service**: Required for advanced automation features. On OEM builds that block the accessibility toggle (for example Samsung Auto Blocker), run `scripts/setup-wireless-adb.ps1` once — it grants `WRITE_SECURE_SETTINGS` and enables the service; afterwards the app toggles it itself, with no OEM screen involved.
 - **Notification Access**: Required for real-time notification monitoring.
 
 ## Reliability model
@@ -282,6 +283,16 @@ Or verify everything in one shot (health, auth, protocol, tool list):
 ```bash
 node mcp-bridge/setup.mjs doctor --url http://192.0.2.100:8080/mcp --api-key your-api-key
 ```
+
+### Enabling accessibility when the OEM settings screen blocks it
+
+Some One UI builds (Samsung Auto Blocker) refuse the accessibility toggle. One-time fix — pair wireless debugging, then run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\setup-wireless-adb.ps1
+```
+
+The script grants `WRITE_SECURE_SETTINGS`, enables the accessibility service and the notification listener. Afterwards Settings shows a live toggle, and the `accessibility_control` MCP tool can enable/disable the service remotely.
 
 ### Emulator connection (Android Studio AVD)
 

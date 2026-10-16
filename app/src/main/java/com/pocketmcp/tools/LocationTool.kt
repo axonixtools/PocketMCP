@@ -5,24 +5,33 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
+import android.location.LocationListener
 import android.location.LocationManager
+import android.os.Bundle
+import android.os.Looper
 import androidx.core.content.ContextCompat
 import com.pocketmcp.server.McpToolCallResult
 import com.pocketmcp.server.McpToolHandler
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonObject
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.coroutines.resume
 
 class LocationTool : McpToolHandler {
     override val name = "get_location"
-    override val description = "Best available last-known location from device providers."
+    override val description =
+        "Best available device location: a recent last-known fix, or else an active " +
+            "GPS/network fix with a short timeout."
     override val inputSchema: JsonObject = buildJsonObject {
         put("type", "object")
         putJsonObject("properties") {
             putJsonObject("max_age_seconds") {
                 put("type", "integer")
-                put("description", "Reject location older than this many seconds (default: 300).")
+                put("description", "Reject last-known location older than this many seconds (default: 300).")
             }
         }
     }
@@ -43,7 +52,10 @@ class LocationTool : McpToolHandler {
 
         val maxAgeSeconds = (argInt(args, "max_age_seconds") ?: 300).coerceIn(1, 86_400)
         val location = getBestLastKnownLocation(context, maxAgeSeconds)
-            ?: return resultError("No recent location available. Open a map app and try again.")
+            ?: getFreshLocation(context, timeoutMs = 10_000)
+            ?: return resultError(
+                "No location available. Make sure device location (GPS) is on, then retry."
+            )
 
         val ageMs = (System.currentTimeMillis() - location.time).coerceAtLeast(0L)
         val payload = buildJsonObject {
@@ -85,4 +97,56 @@ class LocationTool : McpToolHandler {
 
         return best
     }
+
+    /**
+     * Requests a single fresh fix from GPS/network providers. Used when no
+     * recent last-known location exists (for example after a reboot), so
+     * callers do not have to open a map app first to seed one.
+     */
+    @SuppressLint("MissingPermission")
+    @Suppress("DEPRECATION")
+    private suspend fun getFreshLocation(context: Context, timeoutMs: Long): Location? =
+        withTimeoutOrNull(timeoutMs) {
+            val manager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+            val providers = manager.getProviders(true).filter {
+                it == LocationManager.GPS_PROVIDER || it == LocationManager.NETWORK_PROVIDER
+            }
+            if (providers.isEmpty()) {
+                return@withTimeoutOrNull null
+            }
+
+            suspendCancellableCoroutine { continuation ->
+                val resumed = AtomicBoolean(false)
+                val listener = object : LocationListener {
+                    override fun onLocationChanged(location: Location) {
+                        if (resumed.compareAndSet(false, true)) {
+                            runCatching { manager.removeUpdates(this) }
+                            continuation.resume(location)
+                        }
+                    }
+
+                    override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) = Unit
+
+                    override fun onProviderEnabled(provider: String) = Unit
+
+                    override fun onProviderDisabled(provider: String) = Unit
+                }
+
+                providers.forEach { provider ->
+                    runCatching {
+                        manager.requestLocationUpdates(
+                            provider,
+                            0L,
+                            0f,
+                            listener,
+                            Looper.getMainLooper()
+                        )
+                    }
+                }
+
+                continuation.invokeOnCancellation {
+                    runCatching { manager.removeUpdates(listener) }
+                }
+            }
+        }
 }
