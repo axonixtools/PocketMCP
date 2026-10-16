@@ -16,8 +16,10 @@ import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material.icons.rounded.NetworkCheck
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.Shield
+import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material.icons.rounded.VpnKey
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -59,6 +61,12 @@ fun SettingsScreen(
     onOpenAccessibilitySettings: () -> Unit,
     onCycleSafetyFilter: () -> Unit,
     onManageKeys: () -> Unit,
+    updateStatus: String,
+    updateAvailable: Boolean,
+    updateSourceUrl: String,
+    onUpdateSourceUrlChange: (String) -> Unit,
+    onCheckForUpdates: () -> Unit,
+    onInstallUpdate: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
@@ -166,10 +174,43 @@ fun SettingsScreen(
             }
         }
 
+        GroupedSection(title = "App Updates", modifier = Modifier.sectionEntrance(4)) {
+            GroupedCard {
+                SettingsActionRow(
+                    title = "Check for Updates",
+                    subtitle = updateStatus,
+                    subtitleColor = if (updateAvailable) colors.success else null,
+                    icon = Icons.Rounded.SystemUpdate,
+                    tileColor = IndigoLight,
+                    onClick = onCheckForUpdates,
+                    showDivider = true
+                )
+                if (updateAvailable) {
+                    SettingsActionRow(
+                        title = "Install Update",
+                        subtitle = "Download and install the new build",
+                        icon = Icons.Rounded.SystemUpdate,
+                        tileColor = GreenLight,
+                        onClick = onInstallUpdate,
+                        showDivider = true
+                    )
+                }
+                OutlinedTextField(
+                    value = updateSourceUrl,
+                    onValueChange = onUpdateSourceUrlChange,
+                    label = { Text("Update source URL") },
+                    singleLine = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp)
+                )
+            }
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .sectionEntrance(4),
+                .sectionEntrance(5),
             contentAlignment = Alignment.Center
         ) {
             Text(

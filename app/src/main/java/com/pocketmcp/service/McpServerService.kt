@@ -49,6 +49,11 @@ class McpServerService : Service() {
         const val EXTRA_ERROR_COUNT = "extra_error_count"
         const val EXTRA_CONNECTION_COUNT = "extra_connection_count"
 
+        // Persisted so UpdateResumeReceiver can restart the server after a self-update.
+        const val STATE_PREFS_NAME = "pocket_mcp_state"
+        const val KEY_SERVER_SHOULD_RUN = "server_should_run"
+        const val KEY_LAST_PORT = "last_port"
+
         private const val CHANNEL_ID = "mcp_server_channel"
         private const val NOTIFICATION_ID = 1001
     }
@@ -80,10 +85,14 @@ class McpServerService : Service() {
                     stopSelf(startId)
                     return START_NOT_STICKY
                 }
+                recordServerState(true)
                 startServer()
             }
 
-            ACTION_STOP -> stopServer("Stopped")
+            ACTION_STOP -> {
+                recordServerState(false)
+                stopServer("Stopped")
+            }
             ACTION_QUERY_STATUS -> {
                 broadcastStatus("Status")
                 if (mcpServer?.isRunning() != true) {
@@ -93,6 +102,19 @@ class McpServerService : Service() {
         }
 
         return if (mcpServer?.isRunning() == true) START_STICKY else START_NOT_STICKY
+    }
+
+    /**
+     * Remembers whether the server should be running so [UpdateResumeReceiver]
+     * can restart it after the app updates itself. Persists across process
+     * death, which is exactly what a package replacement looks like.
+     */
+    private fun recordServerState(shouldRun: Boolean) {
+        getSharedPreferences(STATE_PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_SERVER_SHOULD_RUN, shouldRun)
+            .putInt(KEY_LAST_PORT, currentPort)
+            .apply()
     }
 
     override fun onDestroy() {

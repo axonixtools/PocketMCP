@@ -19,7 +19,8 @@ Tab switching, staggered content reveals, log filters, the sliding segmented con
 
 ## Download (Testing Pre-release)
 
-- **Latest debug build:** [`PocketMCP-debug.apk`](./PocketMCP-debug.apk) (v1.0.0-beta.6) — install over USB with `adb install -r PocketMCP-debug.apk`
+- **Latest debug build:** [`PocketMCP-debug.apk`](./PocketMCP-debug.apk) (v1.0.0-beta.7) — install over USB with `adb install -r PocketMCP-debug.apk`
+- **In-app updates:** after the first manual install, new builds are installed from Settings → App Updates (checks a JSON manifest and hands the APK to the system installer). The MCP server auto-resumes after each update.
 - Previous tagged release: [v1.0.0-beta.1](https://github.com/axonixtools/PocketMCP/releases/tag/v1.0.0-beta.1)
 - This build is marked as pre-release and may contain bugs while active development continues.
 

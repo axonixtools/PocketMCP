@@ -3,6 +3,7 @@ package com.pocketmcp
 import android.Manifest
 import android.content.*
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -18,6 +19,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import com.pocketmcp.accessibility.PhoneAccessibilityService
 import com.pocketmcp.security.SecurePrefs
 import com.pocketmcp.service.McpServerService
@@ -28,7 +30,13 @@ import com.pocketmcp.ui.screens.*
 import com.pocketmcp.ui.theme.PocketMCPTheme
 import com.pocketmcp.util.ApiKeyGenerator
 import com.pocketmcp.util.McpConfigBuilder
+import com.pocketmcp.util.UpdateChecker
+import com.pocketmcp.util.UpdateManifest
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import java.io.File
 import java.net.NetworkInterface
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -79,6 +87,15 @@ public class MainActivity : ComponentActivity() {
     private var tailscaleEnabled by mutableStateOf(false)
     private var developerModeEnabled by mutableStateOf(false)
     private var safetyFilterMode by mutableStateOf(SAFETY_STRICT)
+
+    // In-app updater state
+    private val updateScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private var updateSourceUrl by mutableStateOf(
+        preferences.getString(UpdateChecker.PREF_UPDATE_URL, null) ?: UpdateChecker.DEFAULT_SOURCE_URL
+    )
+    private var updateStatus by mutableStateOf("Installed build: v${BuildConfig.VERSION_NAME}")
+    private var updateAvailable by mutableStateOf(false)
+    private var updateManifest by mutableStateOf<UpdateManifest?>(null)
 
     private val statusReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -349,6 +366,82 @@ public class MainActivity : ComponentActivity() {
                                     copyToClipboard("PocketMCP API key", key)
                                     showSnackbar("API key copied")
                                     addRuntimeLog("API key copied from settings", LogLevel.INFO)
+                                },
+                                updateStatus = updateStatus,
+                                updateAvailable = updateAvailable,
+                                updateSourceUrl = updateSourceUrl,
+                                onUpdateSourceUrlChange = { url ->
+                                    updateSourceUrl = url
+                                    preferences.edit().putString(UpdateChecker.PREF_UPDATE_URL, url).apply()
+                                },
+                                onCheckForUpdates = {
+                                    updateStatus = "Checking…"
+                                    updateAvailable = false
+                                    updateManifest = null
+                                    updateScope.launch {
+                                        UpdateChecker.fetch(updateSourceUrl)
+                                            .onSuccess { manifest ->
+                                                if (UpdateChecker.isNewer(manifest, BuildConfig.VERSION_CODE)) {
+                                                    updateManifest = manifest
+                                                    updateAvailable = true
+                                                    updateStatus = "Update available: v${manifest.versionName}"
+                                                    addRuntimeLog("Update available: ${manifest.versionName}", LogLevel.INFO)
+                                                } else {
+                                                    updateStatus = "Up to date — v${BuildConfig.VERSION_NAME}"
+                                                    addRuntimeLog("Update check: already up to date", LogLevel.INFO)
+                                                }
+                                            }
+                                            .onFailure { error ->
+                                                updateStatus = "Check failed: ${error.message ?: "unreachable"}"
+                                                addRuntimeLog("Update check failed: ${error.message}", LogLevel.ERROR)
+                                            }
+                                    }
+                                },
+                                onInstallUpdate = {
+                                    val manifest = updateManifest
+                                    when {
+                                        manifest == null -> updateStatus = "Nothing to install"
+                                        !packageManager.canRequestPackageInstalls() -> {
+                                            updateStatus = "Allow installs, then tap Install again"
+                                            runCatching {
+                                                startActivity(
+                                                    Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES)
+                                                        .setData(Uri.parse("package:$packageName"))
+                                                )
+                                            }
+                                            addRuntimeLog("Opened 'Install unknown apps' settings for PocketMCP", LogLevel.INFO)
+                                        }
+                                        else -> {
+                                            updateStatus = "Downloading update…"
+                                            updateScope.launch {
+                                                val target = File(cacheDir, "updates/pocketmcp-update.apk")
+                                                UpdateChecker.download(manifest.apkUrl, target)
+                                                    .onSuccess { file ->
+                                                        updateStatus = "Opening installer…"
+                                                        runCatching {
+                                                            val apkUri = FileProvider.getUriForFile(
+                                                                this@MainActivity,
+                                                                "com.pocketmcp.fileprovider",
+                                                                file
+                                                            )
+                                                            startActivity(
+                                                                Intent(Intent.ACTION_VIEW)
+                                                                    .setDataAndType(apkUri, "application/vnd.android.package-archive")
+                                                                    .addFlags(
+                                                                        Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                                                                            Intent.FLAG_ACTIVITY_NEW_TASK
+                                                                    )
+                                                            )
+                                                        }.onFailure { error ->
+                                                            updateStatus = "Install failed: ${error.message}"
+                                                        }
+                                                    }
+                                                    .onFailure { error ->
+                                                        updateStatus = "Download failed: ${error.message}"
+                                                    }
+                                            }
+                                        }
+                                    }
                                 }
                             )
                         }
