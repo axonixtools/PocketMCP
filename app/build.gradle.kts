@@ -24,8 +24,8 @@ android {
         applicationId = "com.pocketmcp"
         minSdk = 26
         targetSdk = 34
-        versionCode = 7
-        versionName = "1.0.0-beta.7"
+        versionCode = 8
+        versionName = "1.0.0-beta.8"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

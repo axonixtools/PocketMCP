@@ -88,11 +88,11 @@ public class MainActivity : ComponentActivity() {
     private var developerModeEnabled by mutableStateOf(false)
     private var safetyFilterMode by mutableStateOf(SAFETY_STRICT)
 
-    // In-app updater state
+    // In-app updater state. NOTE: never read preferences from a field initializer —
+    // the Activity context is not attached during construction and the app crashes
+    // instantly on launch. The saved source URL is restored in restoreSavedSettings().
     private val updateScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
-    private var updateSourceUrl by mutableStateOf(
-        preferences.getString(UpdateChecker.PREF_UPDATE_URL, null) ?: UpdateChecker.DEFAULT_SOURCE_URL
-    )
+    private var updateSourceUrl by mutableStateOf(UpdateChecker.DEFAULT_SOURCE_URL)
     private var updateStatus by mutableStateOf("Installed build: v${BuildConfig.VERSION_NAME}")
     private var updateAvailable by mutableStateOf(false)
     private var updateManifest by mutableStateOf<UpdateManifest?>(null)
@@ -525,6 +525,9 @@ public class MainActivity : ComponentActivity() {
     private fun restoreSavedSettings() {
         val savedPort = preferences.getInt(PREF_PORT, 8080)
         portText = savedPort.toString()
+
+        updateSourceUrl = preferences.getString(UpdateChecker.PREF_UPDATE_URL, null)
+            ?: UpdateChecker.DEFAULT_SOURCE_URL
 
         val encryptedKey = SecurePrefs.getApiKey(this)
         val legacyKey = preferences.getString(PREF_API_KEY, null)?.takeIf { it.isNotBlank() }
