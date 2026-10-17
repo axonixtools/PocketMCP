@@ -172,11 +172,11 @@ const INTENTS = [
 
   // ----- recording (before apps — "start recording" must not launch an app) --
   {
-    re: /^(?:start|begin)(?:\s+a|\s+the)?(?:\s+new)?(?:\s+voice)?(?:\s+recording|\s+record)$|^record(?:\s+my)?\s+voice$/,
+    re: /^(?:start|begin)(?:\s+a|\s+the)?(?:\s+new)?(?:\s+voice)?(?:\s+recording|\s+record)$|^record(?:\s+my)?\s+voice$|^turn\s+on\s+(?:the\s+|a\s+)?(?:new\s+|voice\s+)*recording$/,
     steps: () => [step('voice_record', { action: 'start' }, 'voice recording · start')],
   },
   {
-    re: /^(?:stop|end|finish)(?:\s+the|\s+my)?(?:\s+voice)?(?:\s+recording|\s+record)$/,
+    re: /^(?:stop|end|finish)(?:\s+the|\s+my)?(?:\s+voice)?(?:\s+recording|\s+record)$|^turn\s+off\s+(?:the\s+|my\s+|a\s+)?(?:voice\s+)*recording$/,
     steps: () => [step('voice_record', { action: 'stop' }, 'voice recording · stop')],
   },
   { re: /^(?:recording status|am i recording|is (?:my )?recording running)$/, steps: () => [step('voice_record', { action: 'status' }, 'voice recording · status')] },
